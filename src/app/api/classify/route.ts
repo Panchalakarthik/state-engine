@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { CLASSIFY_SYSTEM_PROMPT } from "@/lib/prompts";
+import { useLiveAI } from "@/lib/ai-mode";
+import { findArtifact } from "@/lib/artifacts";
 
-const client = new Anthropic();
+/** Lazy client so fixtures mode needs no ANTHROPIC_API_KEY. */
+function getClient(): Anthropic {
+  return new Anthropic();
+}
 
 /** Strip ```json fences / stray prose and parse the first JSON object. */
 function parseJson(text: string): unknown {
@@ -21,7 +26,17 @@ export async function POST(req: NextRequest) {
       components: string[];
     };
 
-    const message = await client.messages.create({
+    // Default: bundled artifact (no API key, deterministic demo).
+    if (!useLiveAI()) {
+      const artifact = findArtifact(screenName);
+      return NextResponse.json({
+        archetypes: artifact.archetypes,
+        layoutDescription: artifact.layoutDescription,
+      });
+    }
+
+    // Live path (USE_LIVE_AI=true).
+    const message = await getClient().messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 1024,
       system: CLASSIFY_SYSTEM_PROMPT,

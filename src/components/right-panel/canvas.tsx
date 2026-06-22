@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import React from "react";
-import ReactDOM from "react-dom/client";
+import {
+  Component,
+  useEffect,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import { evalComponent } from "@/lib/renderer";
 import { bladeScope } from "@/lib/blade-scope";
 import type { ResponsiveMode } from "@/lib/types";
@@ -18,43 +22,52 @@ const FRAME_WIDTH: Record<ResponsiveMode, string> = {
   mobile: "390px",
 };
 
+/** Catches render-time errors thrown by generated Blade components. */
+class RenderBoundary extends Component<
+  { children: ReactNode; onError: (msg: string) => void },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error) {
+    this.props.onError(error.message);
+  }
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
+
 export default function Canvas({ jsx, responsiveMode }: CanvasProps) {
-  const mountRef = useRef<HTMLDivElement>(null);
-  const rootRef = useRef<ReactDOM.Root | null>(null);
+  const [Comp, setComp] = useState<ComponentType | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!jsx || !mountRef.current) return;
+    if (!jsx) {
+      setComp(null);
+      setError(null);
+      return;
+    }
     let cancelled = false;
     setError(null);
+    setComp(null);
 
     evalComponent(jsx, bladeScope)
-      .then((Component) => {
-        if (cancelled || !mountRef.current) return;
-        if (!rootRef.current) {
-          rootRef.current = ReactDOM.createRoot(mountRef.current);
-        }
-        rootRef.current.render(React.createElement(Component));
+      .then((C) => {
+        if (!cancelled) setComp(() => C);
       })
       .catch((err) => {
         if (cancelled) return;
-        console.error("Canvas render error:", err);
-        setError(err?.message ?? "Failed to render component");
+        console.error("Canvas compile error:", err);
+        setError(err?.message ?? "Failed to compile component");
       });
 
     return () => {
       cancelled = true;
     };
   }, [jsx]);
-
-  useEffect(() => {
-    return () => {
-      // Unmount asynchronously to avoid React "synchronous unmount during render"
-      const root = rootRef.current;
-      rootRef.current = null;
-      if (root) setTimeout(() => root.unmount(), 0);
-    };
-  }, []);
 
   if (!jsx) {
     return (
@@ -83,10 +96,14 @@ export default function Canvas({ jsx, responsiveMode }: CanvasProps) {
     <div className="relative flex flex-1 items-start justify-center overflow-auto bg-[#0d0d0d]">
       <DotGrid />
       <div
-        className="relative z-10 my-6 w-full transition-all"
+        className="relative z-10 my-6 w-full px-6 transition-all"
         style={{ maxWidth: FRAME_WIDTH[responsiveMode] }}
       >
-        <div ref={mountRef} className="px-6" />
+        {Comp && (
+          <RenderBoundary key={jsx} onError={setError}>
+            <Comp />
+          </RenderBoundary>
+        )}
       </div>
     </div>
   );

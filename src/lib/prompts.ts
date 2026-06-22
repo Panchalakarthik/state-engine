@@ -29,7 +29,7 @@ CRITICAL OUTPUT FORMAT:
 - NO import statements
 - NO export statements
 - NO markdown fences or backticks
-- All Blade components (Box, Card, CardBody, Text, Heading, Skeleton, Alert, Button, Badge, Divider) are available as globals
+- All Blade components (Box, Card, CardBody, Text, Heading, Skeleton, Alert, Button, Badge, Divider, TextInput, PasswordInput, Link, Checkbox) are available as globals
 - Use JSX syntax
 - Card MUST wrap its content in a CardBody: <Card><CardBody><Text>...</Text></CardBody></Card>
 - Use Box with flexbox props (display="flex", flexDirection, gap="spacing.4") for layout. Do NOT use HTML div/span.

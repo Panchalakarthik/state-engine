@@ -1,0 +1,29 @@
+{
+  "screenName": "Login Page",
+  "matchKeys": ["login", "log in", "sign in", "signin", "auth", "login page"],
+  "components": ["email field", "password field", "sign in button", "remember me"],
+  "archetypes": ["form"],
+  "layoutDescription": {
+    "screenName": "Login Page",
+    "components": [
+      { "id": "heading", "type": "heading", "role": "page title and subtitle" },
+      { "id": "email-field", "type": "text-input", "role": "collects the user email" },
+      { "id": "password-field", "type": "password-input", "role": "collects the password" },
+      { "id": "submit", "type": "button", "role": "submits the login form" }
+    ]
+  },
+  "states": {
+    "default": {
+      "description": "Default state",
+      "jsx": "function GeneratedComponent(){return (<Box display='flex' flexDirection='column' alignItems='center' justifyContent='center' padding='spacing.7'><Box width='100%' maxWidth='400px'><Card padding='spacing.7'><CardBody><Box display='flex' flexDirection='column' gap='spacing.5'><Box display='flex' flexDirection='column' gap='spacing.2'><Heading size='large'>Welcome back</Heading><Text size='small'>Sign in to your Razorpay account</Text></Box><TextInput label='Email' placeholder='you@company.com'/><PasswordInput label='Password' placeholder='Enter your password'/><Box display='flex' flexDirection='row' justifyContent='space-between' alignItems='center'><Checkbox>Remember me</Checkbox><Link href='#'>Forgot password?</Link></Box><Button variant='primary' isFullWidth={true}>Sign in</Button><Box display='flex' flexDirection='row' justifyContent='center' gap='spacing.2'><Text size='small'>New here?</Text><Link href='#'>Create an account</Link></Box></Box></CardBody></Card></Box></Box>);}"
+    },
+    "loading": {
+      "description": "Loading state",
+      "jsx": "function GeneratedComponent(){return (<Box display='flex' flexDirection='column' alignItems='center' justifyContent='center' padding='spacing.7'><Box width='100%' maxWidth='400px'><Card padding='spacing.7'><CardBody><Box display='flex' flexDirection='column' gap='spacing.5'><Skeleton width='170px' height='28px'/><Skeleton width='230px' height='16px'/><Skeleton width='100%' height='48px' borderRadius='small'/><Skeleton width='100%' height='48px' borderRadius='small'/><Skeleton width='100%' height='44px' borderRadius='small'/></Box></CardBody></Card></Box></Box>);}"
+    },
+    "error": {
+      "description": "Error state",
+      "jsx": "function GeneratedComponent(){return (<Box display='flex' flexDirection='column' alignItems='center' justifyContent='center' padding='spacing.7'><Box width='100%' maxWidth='400px'><Card padding='spacing.7'><CardBody><Box display='flex' flexDirection='column' gap='spacing.5'><Box display='flex' flexDirection='column' gap='spacing.2'><Heading size='large'>Welcome back</Heading><Text size='small'>Sign in to your Razorpay account</Text></Box><Alert color='negative' description='Invalid email or password. Please try again.' isDismissible={false}/><TextInput label='Email' placeholder='you@company.com'/><PasswordInput label='Password' placeholder='Enter your password'/><Button variant='primary' isFullWidth={true}>Sign in</Button></Box></CardBody></Card></Box></Box>);}"
+    }
+  }
+}

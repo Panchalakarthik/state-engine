@@ -34,16 +34,29 @@ Screen name + components
 
 ```bash
 npm install --legacy-peer-deps      # Blade's peer range predates React 19
-cp .env.local .env.local            # then edit it — see below
-npm run dev                         # http://localhost:3000
+npm run dev                         # http://localhost:3000 — works as-is
 ```
 
-Set your Anthropic key in `.env.local` (server-side only, never exposed to the
-client):
+Try `Sales Dashboard` or `Login Page` and press Enter.
+
+### Two modes
+
+**Artifacts mode (default).** With no env flag, `/api/classify` and
+`/api/generate` serve pre-generated outputs from `src/lib/artifacts/` (Sales
+Dashboard, Login Page). No API key, no cost, deterministic — ideal for a
+shareable demo. The full UX is identical: input → classify → parallel
+generate → state-switching with a locked layout.
+
+**Live AI mode (optional).** Set both in `.env.local` to do genuine Claude
+generation for any screen name:
 
 ```
+USE_LIVE_AI=true
 ANTHROPIC_API_KEY=sk-ant-...
 ```
+
+The `/api/generate` structure is the same either way — one discrete async unit
+per state merged via `Promise.all`; artifacts just swap in for the live calls.
 
 ## Scripts
 

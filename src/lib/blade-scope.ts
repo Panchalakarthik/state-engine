@@ -9,6 +9,10 @@ import {
   Button,
   Badge,
   Divider,
+  TextInput,
+  PasswordInput,
+  Link,
+  Checkbox,
 } from "@razorpay/blade/components";
 
 export const bladeScope: Record<string, unknown> = {
@@ -22,4 +26,8 @@ export const bladeScope: Record<string, unknown> = {
   Button,
   Badge,
   Divider,
+  TextInput,
+  PasswordInput,
+  Link,
+  Checkbox,
 };
