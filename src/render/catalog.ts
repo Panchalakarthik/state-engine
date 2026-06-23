@@ -114,8 +114,12 @@ export const bladeCatalog = defineCatalog(schema, {
         value: z.union([z.string(), z.record(z.string(), z.unknown())]).nullable(),
         validationState: z.enum(["none", "error"]).nullable(),
         isDisabled: z.boolean().nullable(),
+        checks: z
+          .array(z.object({ type: z.string(), message: z.string() }))
+          .nullable(),
       }),
-      description: "Text input. value supports $bindState binding.",
+      description:
+        "Text input. value supports $bindState binding. checks=[{type,message}] for inline validation (e.g. type 'email', 'required').",
     },
     PasswordInput: {
       props: z.object({

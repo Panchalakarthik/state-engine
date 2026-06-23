@@ -18,8 +18,59 @@ import {
   Link,
 } from "@razorpay/blade/components";
 import type { ComponentProps } from "react";
-import { defineRegistry, useBoundProp } from "@json-render/react";
+import {
+  defineRegistry,
+  useBoundProp,
+  useFieldValidation,
+} from "@json-render/react";
 import { bladeCatalog } from "./catalog";
+
+type ValidationCheck = { type: string; message: string };
+
+// Shared validated input — drives Blade's validationState/errorText from
+// json-render's field validation (built-in 'email', 'required', etc.).
+function ValidatedInput({
+  Comp,
+  props,
+  bindings,
+}: {
+  Comp: typeof TextInput | typeof PasswordInput;
+  props: {
+    label: string;
+    placeholder?: string | null;
+    value?: unknown;
+    validationState?: "none" | "error" | null;
+    isDisabled?: boolean | null;
+    checks?: ValidationCheck[] | null;
+  };
+  bindings?: Record<string, string>;
+}) {
+  const path = bindings?.value ?? "";
+  const [value, setValue] = useBoundProp(props.value, bindings?.value);
+  const { errors, touch, validate } = useFieldValidation(
+    path || "/__novalidate",
+    {
+      checks: props.checks ?? [],
+      validateOn: "change",
+    },
+  );
+  const hasError = props.validationState === "error" || errors.length > 0;
+  return (
+    <Comp
+      label={props.label}
+      placeholder={props.placeholder ?? undefined}
+      value={(value as string) ?? ""}
+      onChange={(e) => {
+        setValue(e.value ?? "");
+        touch();
+        validate();
+      }}
+      validationState={hasError ? "error" : "none"}
+      errorText={errors[0] ?? undefined}
+      isDisabled={props.isDisabled ?? false}
+    />
+  );
+}
 
 // Drop null/undefined so Blade falls back to its own defaults.
 function clean<T extends Record<string, unknown>>(obj: T): Partial<T> {
@@ -82,32 +133,12 @@ export const { registry } = defineRegistry(bladeCatalog, {
         {props.text}
       </Button>
     ),
-    TextInput: ({ props, bindings }) => {
-      const [value, setValue] = useBoundProp(props.value, bindings?.value);
-      return (
-        <TextInput
-          label={props.label}
-          placeholder={props.placeholder ?? undefined}
-          value={(value as string) ?? ""}
-          onChange={(e) => setValue(e.value ?? "")}
-          validationState={props.validationState ?? "none"}
-          isDisabled={props.isDisabled ?? false}
-        />
-      );
-    },
-    PasswordInput: ({ props, bindings }) => {
-      const [value, setValue] = useBoundProp(props.value, bindings?.value);
-      return (
-        <PasswordInput
-          label={props.label}
-          placeholder={props.placeholder ?? undefined}
-          value={(value as string) ?? ""}
-          onChange={(e) => setValue(e.value ?? "")}
-          validationState={props.validationState ?? "none"}
-          isDisabled={props.isDisabled ?? false}
-        />
-      );
-    },
+    TextInput: ({ props, bindings }) => (
+      <ValidatedInput Comp={TextInput} props={props} bindings={bindings} />
+    ),
+    PasswordInput: ({ props, bindings }) => (
+      <ValidatedInput Comp={PasswordInput} props={props} bindings={bindings} />
+    ),
     Checkbox: ({ props }) => (
       <Checkbox isDisabled={props.isDisabled ?? false}>{props.label}</Checkbox>
     ),

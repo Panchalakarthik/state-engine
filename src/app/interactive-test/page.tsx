@@ -20,7 +20,7 @@ const spec: Spec = {
     title: { type: "Heading", props: { text: "Welcome back", size: "large" }, children: [] },
     sub: { type: "Text", props: { text: "Sign in to your Razorpay account", size: "small" }, children: [] },
     alert: { type: "Alert", props: { description: "Invalid email or password. Please try again.", color: "negative" }, children: [], visible: { $state: "/form/hasError" } },
-    email: { type: "TextInput", props: { label: "Email", placeholder: "you@company.com", value: { $bindState: "/form/email" }, isDisabled: { $state: "/form/submitting" }, validationState: { $state: "/form/fieldState" } }, children: [] },
+    email: { type: "TextInput", props: { label: "Email", placeholder: "you@company.com", value: { $bindState: "/form/email" }, isDisabled: { $state: "/form/submitting" }, validationState: { $state: "/form/fieldState" }, checks: [{ type: "email", message: "Enter a valid email address" }] }, children: [] },
     password: { type: "PasswordInput", props: { label: "Password", placeholder: "Enter your password", value: { $bindState: "/form/password" }, isDisabled: { $state: "/form/submitting" }, validationState: { $state: "/form/fieldState" } }, children: [] },
     submit: { type: "Button", props: { text: "Sign in", variant: "primary", isFullWidth: true, isLoading: { $state: "/form/submitting" }, isDisabled: { $computed: "isFormIncomplete", args: { email: { $state: "/form/email" }, password: { $state: "/form/password" } } } }, children: [], on: { press: { action: "submit" } } },
   },
@@ -58,6 +58,17 @@ export default function InteractiveTest() {
     [],
   );
 
+  const validationFunctions = useMemo(
+    () => ({
+      // returns true when valid; empty is valid (let `required` own emptiness)
+      email: (value: unknown) => {
+        const s = String(value ?? "");
+        return s === "" || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
+      },
+    }),
+    [],
+  );
+
   return (
     <div style={{ maxWidth: 520, margin: "40px auto" }}>
       <JSONUIProvider
@@ -65,6 +76,7 @@ export default function InteractiveTest() {
         store={store}
         handlers={handlers}
         functions={functions}
+        validationFunctions={validationFunctions}
       >
         <Renderer spec={spec} registry={registry} />
       </JSONUIProvider>
