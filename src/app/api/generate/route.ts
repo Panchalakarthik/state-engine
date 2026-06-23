@@ -11,12 +11,25 @@ function getClient(): Anthropic {
   return new Anthropic();
 }
 
+/** Map a CSS named color to the closest valid Blade backgroundColor token. */
+function remapNamedColor(color: string): string {
+  const c = color.toLowerCase();
+  if (c === "white" || c === "snow" || c === "ivory" || c === "lightyellow" || c === "beige" || c === "mintcream")
+    return "surface.background.gray.subtle";
+  if (c === "transparent") return "transparent";
+  return "surface.background.gray.intense";
+}
+
 function sanitizeJsx(jsx: string): string {
   let out = jsx
     // Strip invalid `as` props from Box — Box only accepts div/section/etc.
     .replace(/(<Box\b[^>]*?)\s+as="[^"]*"/g, "$1")
-    // Strip hex/rgb backgroundColor — Blade Box only accepts design tokens
+    // Replace hex/rgb backgroundColor with Blade token
     .replace(/backgroundColor="(#[^"]+|rgb[^"]+)"/g, 'backgroundColor="surface.background.gray.intense"')
+    // Replace CSS named colors (no dots = not a Blade token) with Blade token
+    .replace(/backgroundColor="([a-zA-Z][a-zA-Z-]*)"/g, (_, color) =>
+      `backgroundColor="${remapNamedColor(color)}"`,
+    )
     // Strip single-line style props — Blade doesn't support style={{}}
     .replace(/\bstyle=\{\{[^}]*\}\}/g, "");
 

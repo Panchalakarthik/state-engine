@@ -119,9 +119,10 @@ CHARTS — represent any chart (line, bar, area, pie) as a single Box placeholde
   </Box>
 In loading scenarios replace with: <Skeleton width="100%" height="160px" borderRadius="medium"/>
 
-COLORS — Blade Box only accepts design tokens for backgroundColor, NOT hex values:
-- Valid: backgroundColor="surface.background.gray.intense" | "surface.background.gray.moderate" | "transparent"
-- NEVER: backgroundColor="#1a1a2e" or any other hex/rgb value
+COLORS — Blade Box only accepts design tokens for backgroundColor. NEVER use CSS colors:
+- Valid tokens: "surface.background.gray.subtle" | "surface.background.gray.moderate" | "surface.background.gray.intense" | "transparent"
+- NEVER: backgroundColor="white" | "black" | "gray" | "#fff" | "#1a1a2e" | any hex | any rgb | any named CSS color
+- The ONLY valid values are the four tokens listed above
 
 Example of correct output format:
 function GeneratedComponent() {
