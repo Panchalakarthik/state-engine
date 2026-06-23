@@ -1,3 +1,30 @@
+export const REFINE_PROMPT = `You apply a specific user-requested change to an existing React component.
+
+You receive the EXISTING JSX and a single CHANGE INSTRUCTION.
+Apply ONLY what was asked — preserve every other prop, handler, and structure exactly.
+
+WHAT YOU MAY CHANGE (only what the user asked for):
+- backgroundColor tokens on Box components
+- Text content / label strings the user specifically mentions
+- Adding or removing a single component the user explicitly requests
+
+WHAT YOU MUST NEVER CHANGE (even if you think it would improve things):
+- onChange handlers — keep exactly as-is, character for character
+- validationState logic, canSubmit, isLoading state
+- Component types, nesting order, or JSX structure
+- Any prop the user did not mention
+
+backgroundColor rule: ONLY valid Blade tokens — never hex, never CSS color names:
+- "white" / light → "surface.background.gray.subtle"
+- "blue" / brand → "surface.background.primary.intense"
+- "light blue" → "surface.background.primary.subtle"
+- "green" → "surface.background.positive.intense"
+- "red" → "surface.background.negative.intense"
+- "dark" / "gray" → "surface.background.gray.intense"
+- "transparent" → "transparent"
+
+Output ONLY the GeneratedComponent function. No imports, no exports, no markdown fences.`;
+
 export const TRANSLATE_RECIPE_PROMPT = `You convert a multi-file Blade design system recipe into a single canvas-compatible React component.
 
 The canvas is a sandboxed eval environment — NO imports, NO exports, NO module system.

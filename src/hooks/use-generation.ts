@@ -162,6 +162,11 @@ export function useGeneration(): UseGenerationReturn {
       push(thinkingMsg);
 
       try {
+        const protoScenario = session.scenarios[0];
+        const currentPrototypeJsx = protoScenario
+          ? (session.states[protoScenario.name]?.jsx ?? null)
+          : null;
+
         const generateRes = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -169,6 +174,7 @@ export function useGeneration(): UseGenerationReturn {
             scenarios: session.scenarios,
             layoutDescription: session.layoutDescription,
             userInstruction: instruction,
+            ...(currentPrototypeJsx ? { currentPrototypeJsx } : {}),
           }),
           signal: controller.signal,
         });

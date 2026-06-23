@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFileSync } from "fs";
 import { join } from "path";
 import Anthropic from "@anthropic-ai/sdk";
-import { SCENARIO_SYSTEM_PROMPT, ADAPT_SCENARIO_PROMPT, TRANSLATE_RECIPE_PROMPT } from "@/lib/prompts";
+import { SCENARIO_SYSTEM_PROMPT, ADAPT_SCENARIO_PROMPT, TRANSLATE_RECIPE_PROMPT, REFINE_PROMPT } from "@/lib/prompts";
 import { getBladeDocs } from "@/lib/blade-docs";
 import { useLiveAI } from "@/lib/ai-mode";
 import { findArtifact } from "@/lib/artifacts";
@@ -203,14 +203,31 @@ Adapt the template for this scenario. Output ONLY the GeneratedComponent functio
   return { jsx: cleanJsx(raw), description: scenario.description };
 }
 
+/**
+ * Pass 1 (refine path): apply a user instruction to the existing prototype JSX.
+ * Safer than full regeneration — preserves all handlers and structure.
+ */
+async function refinePrototype(currentJsx: string, instruction: string): Promise<StateOutput> {
+  const userContent = `EXISTING JSX:
+${currentJsx}
+
+APPLY THIS CHANGE: ${instruction}
+
+Output ONLY the modified GeneratedComponent function.`;
+
+  const raw = await callClaude(REFINE_PROMPT, userContent);
+  return { jsx: cleanJsx(raw), description: instruction };
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { scenarios, layoutDescription, userInstruction, archetypes } =
+    const { scenarios, layoutDescription, userInstruction, archetypes, currentPrototypeJsx } =
       (await req.json()) as {
         scenarios: Scenario[];
         layoutDescription: LayoutDescription;
         userInstruction?: string;
         archetypes?: string[];
+        currentPrototypeJsx?: string;
       };
 
     const live = useLiveAI();
@@ -236,22 +253,26 @@ export async function POST(req: NextRequest) {
     const recipe = findRecipe(layoutDescription.screenName);
 
     let protoResult: StateOutput;
-    if (recipe && !userInstruction) {
+    if (currentPrototypeJsx && userInstruction) {
+      // Refine path: user asked for a change on an existing result.
+      // Apply the delta to the current JSX instead of regenerating from scratch.
+      // This preserves all handlers, structure, and avoids Blade runtime crashes.
+      protoResult = await refinePrototype(currentPrototypeJsx, userInstruction);
+    } else if (recipe && !userInstruction) {
       if (recipe.patternDoc) {
         // Option B: read blade-mcp pattern doc and AI-translate to canvas JSX.
-        // Falls back to AI generation if the doc is missing or translation fails.
         const translated = await translateRecipeDoc(recipe.patternDoc);
         protoResult = translated
           ? { jsx: translated, description: protoScenario.description }
-          : await generatePrototype(protoScenario, layoutDescription, userInstruction, archetypes ?? []);
+          : await generatePrototype(protoScenario, layoutDescription, undefined, archetypes ?? []);
       } else if (recipe.prototypeJsx) {
         // Hardcoded fallback (e.g. Login — no blade-mcp pattern doc exists).
         protoResult = { jsx: recipe.prototypeJsx, description: protoScenario.description };
       } else {
-        protoResult = await generatePrototype(protoScenario, layoutDescription, userInstruction, archetypes ?? []);
+        protoResult = await generatePrototype(protoScenario, layoutDescription, undefined, archetypes ?? []);
       }
     } else {
-      // No recipe match, or user is refining — full AI generation.
+      // No recipe, no existing JSX — full AI generation.
       protoResult = await generatePrototype(protoScenario, layoutDescription, userInstruction, archetypes ?? []);
     }
     states[protoScenario.name] = protoResult;
