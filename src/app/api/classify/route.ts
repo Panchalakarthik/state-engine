@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { CLASSIFY_SYSTEM_PROMPT } from "@/lib/prompts";
 import { useLiveAI } from "@/lib/ai-mode";
 import { findArtifact } from "@/lib/artifacts";
+import { findRecipe } from "@/lib/blade-recipes";
 
 /** Lazy client so fixtures mode needs no ANTHROPIC_API_KEY. */
 function getClient(): Anthropic {
@@ -33,6 +34,16 @@ export async function POST(req: NextRequest) {
         archetypes: artifact.archetypes,
         scenarios: artifact.scenarios,
         layoutDescription: artifact.layoutDescription,
+      });
+    }
+
+    // Blade recipe match: use predefined scenarios — no AI classification needed.
+    const recipe = findRecipe(screenName);
+    if (recipe) {
+      return NextResponse.json({
+        archetypes: recipe.archetypes,
+        scenarios: recipe.scenarios,
+        layoutDescription: { screenName, components: [] },
       });
     }
 

@@ -4,6 +4,7 @@ import { SCENARIO_SYSTEM_PROMPT, ADAPT_SCENARIO_PROMPT } from "@/lib/prompts";
 import { getBladeDocs } from "@/lib/blade-docs";
 import { useLiveAI } from "@/lib/ai-mode";
 import { findArtifact } from "@/lib/artifacts";
+import { findRecipe } from "@/lib/blade-recipes";
 import type { LayoutDescription, Scenario, StateOutput } from "@/lib/types";
 
 function getClient(): Anthropic {
@@ -170,12 +171,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ states });
     }
 
-    // Pass 1: prototype (always first scenario)
+    // Pass 1: prototype
+    // If a Blade recipe matches the screen name, use its hardcoded JSX directly.
+    // This ensures the generated output matches the actual Blade design system recipe.
+    // AI is only used for non-recipe screens.
     const protoScenario = scenarios.find((s) => s.name === "prototype") ?? scenarios[0];
-    const protoResult = await generatePrototype(protoScenario, layoutDescription, userInstruction, archetypes ?? []);
+    const recipe = findRecipe(layoutDescription.screenName);
+
+    let protoResult: StateOutput;
+    if (recipe && !userInstruction) {
+      // Blade recipe found — use it as-is (no AI needed for prototype)
+      protoResult = { jsx: recipe.prototypeJsx, description: protoScenario.description };
+    } else {
+      // No recipe (or user is refining) — generate with AI
+      protoResult = await generatePrototype(protoScenario, layoutDescription, userInstruction, archetypes ?? []);
+    }
     states[protoScenario.name] = protoResult;
 
-    // Pass 2: adapt all other scenarios from the prototype template
+    // Pass 2: AI adapts the prototype to each scenario state (loading, declining, empty, etc.)
     for (const s of scenarios) {
       if (s.name === protoScenario.name) continue;
       states[s.name] = await adaptScenario(protoResult.jsx, s);
