@@ -35,6 +35,10 @@ export function useGeneration(): UseGenerationReturn {
     setMessages((prev) => [...prev, msg]);
   }, []);
 
+  const update = useCallback((id: string, patch: Partial<ChatMessage>) => {
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  }, []);
+
   const clearMessages = useCallback(() => setMessages([]), []);
 
   const abort = useCallback(() => {
@@ -52,7 +56,14 @@ export function useGeneration(): UseGenerationReturn {
       setIsGenerating(true);
 
       push(makeMsg("user", screenName));
-      push(makeMsg("ai", `Classifying ${screenName}...`, { type: "reasoning" }));
+
+      // ── Phase 1: Classify ────────────────────────────────────────────────
+      const classifyThinking = makeMsg("ai", "", {
+        type: "thinking",
+        phase: "Classifying your screen…",
+        detail: "Analysing the screen name to determine its archetype, component layout, and which UI states a real user would encounter.",
+      });
+      push(classifyThinking);
 
       try {
         const classifyRes = await fetch("/api/classify", {
@@ -69,13 +80,25 @@ export function useGeneration(): UseGenerationReturn {
         };
 
         const scenarioNames = scenarios.map((s) => s.name);
+
+        update(classifyThinking.id, { isComplete: true });
+
+        // Typed confirmation between the two reasoning blocks
         push(
           makeMsg(
             "ai",
-            `Classified as ${archetypes.join(", ")}. Generating ${scenarioNames.length} scenarios: ${scenarioNames.join(", ")}...`,
+            `Classified as ${archetypes.join(", ")} — ${scenarioNames.length} scenarios planned.`,
             { type: "classified" },
           ),
         );
+
+        // ── Phase 2: Generate ──────────────────────────────────────────────
+        const generateThinking = makeMsg("ai", "", {
+          type: "thinking",
+          phase: `Generating ${scenarioNames.length} scenarios…`,
+          detail: `Building the prototype first, then adapting it into ${scenarioNames.length} distinct states: ${scenarioNames.join(" · ")}.`,
+        });
+        push(generateThinking);
 
         const generateRes = await fetch("/api/generate", {
           method: "POST",
@@ -99,10 +122,12 @@ export function useGeneration(): UseGenerationReturn {
           updatedAt: Date.now(),
         };
 
+        update(generateThinking.id, { isComplete: true });
+
         push(
           makeMsg(
             "ai",
-            `${scenarioNames.length} scenarios ready: ${scenarioNames.join(" · ")}`,
+            `${scenarioNames.length} scenarios ready — switch between them using the dropdown above.`,
             { type: "result", stateNames: scenarioNames },
           ),
         );
@@ -111,16 +136,14 @@ export function useGeneration(): UseGenerationReturn {
       } catch (err) {
         if ((err as Error).name === "AbortError") return null;
         push(
-          makeMsg("ai", "Generation failed. Please try again.", {
-            type: "error",
-          }),
+          makeMsg("ai", "Generation failed. Please try again.", { type: "error" }),
         );
         return null;
       } finally {
         setIsGenerating(false);
       }
     },
-    [push],
+    [push, update],
   );
 
   const refine = useCallback(
@@ -130,7 +153,13 @@ export function useGeneration(): UseGenerationReturn {
       setIsGenerating(true);
 
       push(makeMsg("user", instruction));
-      push(makeMsg("ai", "Applying your change...", { type: "reasoning" }));
+
+      const thinkingMsg = makeMsg("ai", "", {
+        type: "thinking",
+        phase: "Applying your change…",
+        detail: `Regenerating all ${session.scenarios.length} scenarios with your instruction applied to the prototype, then re-adapting each state.`,
+      });
+      push(thinkingMsg);
 
       try {
         const generateRes = await fetch("/api/generate", {
@@ -146,14 +175,12 @@ export function useGeneration(): UseGenerationReturn {
         if (!generateRes.ok) throw new Error("generate failed");
         const { states } = await generateRes.json();
 
-        const updated: Session = {
-          ...session,
-          states,
-          updatedAt: Date.now(),
-        };
+        const updated: Session = { ...session, states, updatedAt: Date.now() };
+
+        update(thinkingMsg.id, { isComplete: true });
 
         push(
-          makeMsg("ai", `Done. ${session.scenarios.length} scenarios updated.`, {
+          makeMsg("ai", `Done — ${session.scenarios.length} scenarios updated.`, {
             type: "result",
             stateNames: session.scenarios.map((s) => s.name),
           }),
@@ -162,13 +189,14 @@ export function useGeneration(): UseGenerationReturn {
         return updated;
       } catch (err) {
         if ((err as Error).name === "AbortError") return null;
+        update(thinkingMsg.id, { isComplete: true });
         push(makeMsg("ai", "Refinement failed.", { type: "error" }));
         return null;
       } finally {
         setIsGenerating(false);
       }
     },
-    [push],
+    [push, update],
   );
 
   return { messages, isGenerating, generate, refine, abort, clearMessages };

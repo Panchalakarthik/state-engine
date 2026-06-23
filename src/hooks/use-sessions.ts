@@ -27,7 +27,8 @@ export function useSessions(): UseSessionsReturn {
   useEffect(() => {
     const stored = getSessions();
     setSessions(stored);
-    if (stored.length > 0) setActiveSessionId(stored[0].id);
+    // Don't auto-activate last session — start with blank canvas.
+    // User can pick a session from History.
   }, []);
 
   const activeSession =

@@ -7,12 +7,8 @@ import HistoryPanel from "./history-panel";
 import { useGeneration } from "@/hooks/use-generation";
 import { useSessions } from "@/hooks/use-sessions";
 
-const DEFAULT_COMPONENTS = [
-  "metric cards",
-  "line chart",
-  "date filter",
-  "transactions table",
-];
+/** Components are derived by the classify AI from the screen name. */
+const DEFAULT_COMPONENTS: string[] = [];
 
 export default function Workspace() {
   const [historyOpen, setHistoryOpen] = useState(false);

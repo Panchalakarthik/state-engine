@@ -37,17 +37,35 @@ export async function POST(req: NextRequest) {
     }
 
     // Live path (USE_LIVE_AI=true): AI derives scenarios from component props.
-    const message = await getClient().messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1024,
-      system: CLASSIFY_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `Screen name: "${screenName}"\nComponents on screen: ${components.join(", ")}`,
-        },
-      ],
-    });
+    let message;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        message = await getClient().messages.create({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1024,
+          system: CLASSIFY_SYSTEM_PROMPT,
+          messages: [
+            {
+              role: "user",
+              content:
+                `Screen name: "${screenName}"` +
+                (components.length > 0
+                  ? `\nComponents on screen: ${components.join(", ")}`
+                  : ""),
+            },
+          ],
+        });
+        break;
+      } catch (err) {
+        const status = (err as { status?: number }).status;
+        if (status === 529 && attempt < 2) {
+          await new Promise((r) => setTimeout(r, 4000 * (attempt + 1)));
+          continue;
+        }
+        throw err;
+      }
+    }
+    if (!message) throw new Error("All retry attempts failed");
 
     const text =
       message.content[0].type === "text" ? message.content[0].text : "{}";

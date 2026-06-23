@@ -34,7 +34,7 @@ export interface Session {
 }
 
 export type ChatMessageRole = "user" | "ai";
-export type ChatMessageType = "reasoning" | "classified" | "result" | "error";
+export type ChatMessageType = "thinking" | "reasoning" | "classified" | "result" | "error";
 
 export interface ChatMessage {
   id: string;
@@ -42,6 +42,12 @@ export interface ChatMessage {
   type?: ChatMessageType;
   content: string;
   stateNames?: string[];
+  /** For type="thinking": short label (e.g. "Classifying your screen…") */
+  phase?: string;
+  /** For type="thinking": longer explanation shown inside expanded body */
+  detail?: string;
+  /** For type="thinking": true once all steps have completed */
+  isComplete?: boolean;
   timestamp: number;
 }
 
