@@ -86,7 +86,10 @@ You will be given a scenario name and description that tells you exactly what th
 
 SCENARIO RENDERING RULES:
 - "prototype" scenario: the FULLY INTERACTIVE working version. Use React useState hooks to make it live:
-    • Forms: controlled inputs (value/onChange), Button disabled while fields empty (isDisabled), on submit set spinner (isLoading=true) + disable inputs, then show error Alert + validationState="error" on fields. Show sample data pre-filled or allow typing.
+    • Forms: controlled inputs (value/onChange). Add INLINE validation per field type:
+      - email fields: validate with /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) on every onChange, set validationState="error" + errorText="Enter a valid email address" instantly while typing.
+      - required fields: Button isDisabled while any required field is empty OR has a validation error.
+      - On submit: set isLoading=true + isDisabled=true on all inputs. After 1.5s: set isLoading=false, show Alert color="negative" + validationState="error" on fields.
     • Dashboards: fully loaded with realistic sample data, all Badges showing real values, chart visible.
     This is the main screen — make it feel like a real product prototype, not a static mockup.
 - "loading" scenario: replace ALL data content with Blade Skeleton shimmer. Every text value, number, badge → Skeleton. Preserve layout structure exactly.
