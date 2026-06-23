@@ -72,6 +72,7 @@ export default function Workspace() {
         scenarios={activeSession?.scenarios ?? []}
         states={activeSession?.states ?? {}}
         activeState={activeSession?.activeState ?? ""}
+        isGenerating={isGenerating}
         onStateChange={handleStateChange}
         onExport={handleExport}
       />

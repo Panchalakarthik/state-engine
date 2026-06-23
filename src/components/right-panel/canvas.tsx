@@ -14,6 +14,7 @@ import type { ResponsiveMode } from "@/lib/types";
 interface CanvasProps {
   jsx: string | null;
   responsiveMode: ResponsiveMode;
+  isGenerating?: boolean;
 }
 
 const FRAME_WIDTH: Record<ResponsiveMode, string> = {
@@ -40,7 +41,7 @@ class RenderBoundary extends Component<
   }
 }
 
-export default function Canvas({ jsx, responsiveMode }: CanvasProps) {
+export default function Canvas({ jsx, responsiveMode, isGenerating }: CanvasProps) {
   const [Comp, setComp] = useState<ComponentType | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,6 +69,18 @@ export default function Canvas({ jsx, responsiveMode }: CanvasProps) {
       cancelled = true;
     };
   }, [jsx]);
+
+  if (isGenerating) {
+    return (
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#0d0d0d]">
+        <DotGrid />
+        <div className="relative z-10 flex flex-col items-center gap-4">
+          <p className="text-sm text-[#666]">AI is generating</p>
+          <BouncingDots />
+        </div>
+      </div>
+    );
+  }
 
   if (!jsx) {
     return (
@@ -119,5 +132,28 @@ function DotGrid() {
         backgroundSize: "28px 28px",
       }}
     />
+  );
+}
+
+function BouncingDots() {
+  return (
+    <div className="flex items-center gap-1.5">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="h-1.5 w-1.5 rounded-full bg-[#444]"
+          style={{
+            animation: "bounce 1.2s ease-in-out infinite",
+            animationDelay: `${i * 0.2}s`,
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes bounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+          40% { transform: translateY(-6px); opacity: 1; }
+        }
+      `}</style>
+    </div>
   );
 }

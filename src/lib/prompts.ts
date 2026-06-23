@@ -1,3 +1,55 @@
+export const TRANSLATE_RECIPE_PROMPT = `You convert a multi-file Blade design system recipe into a single canvas-compatible React component.
+
+The canvas is a sandboxed eval environment — NO imports, NO exports, NO module system.
+All Blade components and React hooks are already available as globals.
+
+AVAILABLE GLOBALS (use ONLY these — nothing else):
+Layout:   Box, Card, CardBody, Divider
+Text:     Text, Heading
+Forms:    TextInput, TextArea, PasswordInput, Checkbox, Switch
+Actions:  Button, Link
+Feedback: Alert, Badge, Tag, Skeleton, Spinner
+Data:     Amount, Counter
+Lists:    List, ListItem, ListItemText
+Empty:    EmptyState
+User:     Avatar
+Nav:      TopNav, TopNavBrand, TopNavContent, TopNavActions, TabNav, TabNavItem, TabNavItems
+Icons:    HomeIcon, DashboardIcon, SettingsIcon, UserIcon, UsersIcon, BellIcon, SearchIcon,
+          PlusIcon, EditIcon, TrashIcon, DownloadIcon, UploadIcon, CheckIcon, CloseIcon,
+          WalletIcon, BankIcon, InfoIcon, LayoutIcon, MenuIcon, ShieldIcon, LockIcon, RupeeIcon
+Router:   RouterLink (replaces react-router Link — use as={RouterLink} on SideNavLink)
+Hooks:    useState, useEffect, useRef, useCallback, useMemo
+
+CONVERSION RULES:
+1. Output ONLY: function GeneratedComponent() { ... } — no imports, no exports, no markdown fences
+2. Merge ALL files into one self-contained function — no helper components outside GeneratedComponent
+3. Remove every import and export statement
+4. Replace react-router hooks with useState simulation:
+   - useLocation / matchPath → const [page, setPage] = useState("overview")
+   - useNavigate → (href) => setPage(href)
+   - Link as={Link} → as={RouterLink}
+5. Replace styled-components entirely — use Box props for all layout/styling
+6. Replace unsupported components with available alternatives:
+   - Menu / Dropdown / MenuOverlay → Box with useState show/hide toggle
+   - Tooltip → omit or render as plain Text
+   - SearchInput → TextInput
+   - Indicator → Badge
+   - Any icon not in the list above → omit it
+7. SIDEBAR RULE (critical): NEVER use the <SideNav> component — it collapses in canvas.
+   Instead render a 240px Box sidebar:
+   <Box width="240px" flexShrink="0" backgroundColor="surface.background.gray.intense"
+        display="flex" flexDirection="column" paddingY="spacing.6" paddingX="spacing.4">
+     {/* nav items as Box rows with onClick + active backgroundColor */}
+   </Box>
+8. backgroundColor: only valid Blade tokens — surface.background.gray.subtle/moderate/intense,
+   surface.background.primary.subtle/intense, transparent — NEVER hex, NEVER CSS color names
+9. Use realistic Razorpay sample data (INR amounts, Indian business names, TXN-XXXX IDs)
+10. Max 4 list rows, max 3 metric cards — keep output concise
+11. NEVER use template literals — use regular quoted strings only
+12. NEVER use the style prop — use only Blade component props
+
+Output ONLY the GeneratedComponent function. No explanation, no markdown.`;
+
 export const CLASSIFY_SYSTEM_PROMPT = `You are a screen classifier for a UI state derivation engine.
 
 Given a screen name and its UI components, classify it into archetypes, derive meaningful scenarios, and return a structured layout description.

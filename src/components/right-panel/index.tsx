@@ -9,6 +9,7 @@ interface RightPanelProps {
   scenarios: Scenario[];
   states: Record<string, StateOutput>;
   activeState: string;
+  isGenerating: boolean;
   onStateChange: (state: string) => void;
   onExport: () => void;
 }
@@ -17,6 +18,7 @@ export default function RightPanel({
   scenarios,
   states,
   activeState,
+  isGenerating,
   onStateChange,
   onExport,
 }: RightPanelProps) {
@@ -34,7 +36,7 @@ export default function RightPanel({
         onStateChange={onStateChange}
         onExport={onExport}
       />
-      <Canvas jsx={activeJsx} responsiveMode={responsiveMode} />
+      <Canvas jsx={activeJsx} responsiveMode={responsiveMode} isGenerating={isGenerating} />
     </div>
   );
 }

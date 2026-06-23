@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readFileSync } from "fs";
+import { join } from "path";
 import Anthropic from "@anthropic-ai/sdk";
-import { SCENARIO_SYSTEM_PROMPT, ADAPT_SCENARIO_PROMPT } from "@/lib/prompts";
+import { SCENARIO_SYSTEM_PROMPT, ADAPT_SCENARIO_PROMPT, TRANSLATE_RECIPE_PROMPT } from "@/lib/prompts";
 import { getBladeDocs } from "@/lib/blade-docs";
 import { useLiveAI } from "@/lib/ai-mode";
 import { findArtifact } from "@/lib/artifacts";
@@ -9,6 +11,35 @@ import type { LayoutDescription, Scenario, StateOutput } from "@/lib/types";
 
 function getClient(): Anthropic {
   return new Anthropic();
+}
+
+/** In-process cache: pattern doc content → translated canvas JSX. Survives hot reloads. */
+const recipeTranslationCache = new Map<string, string>();
+
+/**
+ * Reads a blade-mcp pattern doc and asks the AI to translate it to canvas-compatible JSX.
+ * Result is cached by doc content so identical docs are only translated once per process.
+ */
+async function translateRecipeDoc(patternDoc: string): Promise<string | null> {
+  const docPath = join(
+    process.cwd(),
+    "node_modules/@razorpay/blade-mcp/knowledgebase/patterns",
+    `${patternDoc}.md`,
+  );
+  let docContent: string;
+  try {
+    docContent = readFileSync(docPath, "utf8");
+  } catch {
+    return null;
+  }
+
+  const cached = recipeTranslationCache.get(docContent);
+  if (cached) return cached;
+
+  const raw = await callClaude(TRANSLATE_RECIPE_PROMPT, docContent);
+  const jsx = cleanJsx(raw);
+  recipeTranslationCache.set(docContent, jsx);
+  return jsx;
 }
 
 /** Map a CSS named color to the closest valid Blade backgroundColor token. */
@@ -206,10 +237,21 @@ export async function POST(req: NextRequest) {
 
     let protoResult: StateOutput;
     if (recipe && !userInstruction) {
-      // Blade recipe found — use it as-is (no AI needed for prototype)
-      protoResult = { jsx: recipe.prototypeJsx, description: protoScenario.description };
+      if (recipe.patternDoc) {
+        // Option B: read blade-mcp pattern doc and AI-translate to canvas JSX.
+        // Falls back to AI generation if the doc is missing or translation fails.
+        const translated = await translateRecipeDoc(recipe.patternDoc);
+        protoResult = translated
+          ? { jsx: translated, description: protoScenario.description }
+          : await generatePrototype(protoScenario, layoutDescription, userInstruction, archetypes ?? []);
+      } else if (recipe.prototypeJsx) {
+        // Hardcoded fallback (e.g. Login — no blade-mcp pattern doc exists).
+        protoResult = { jsx: recipe.prototypeJsx, description: protoScenario.description };
+      } else {
+        protoResult = await generatePrototype(protoScenario, layoutDescription, userInstruction, archetypes ?? []);
+      }
     } else {
-      // No recipe (or user is refining) — generate with AI
+      // No recipe match, or user is refining — full AI generation.
       protoResult = await generatePrototype(protoScenario, layoutDescription, userInstruction, archetypes ?? []);
     }
     states[protoScenario.name] = protoResult;
