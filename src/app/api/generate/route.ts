@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { SCENARIO_SYSTEM_PROMPT, ADAPT_SCENARIO_PROMPT } from "@/lib/prompts";
+import { getBladeDocs } from "@/lib/blade-docs";
 import { useLiveAI } from "@/lib/ai-mode";
 import { findArtifact } from "@/lib/artifacts";
 import type { LayoutDescription, Scenario, StateOutput } from "@/lib/types";
@@ -36,6 +37,16 @@ function sanitizeJsx(jsx: string): string {
     /\b(on[A-Z][a-zA-Z]+)=\{([a-zA-Z_$][a-zA-Z0-9_$]*\([^{()]*\))\}/g,
     "$1={() => $2}",
   );
+
+  // Fix SideNavLink missing `as` prop — Blade requires it (crashes without it).
+  // AI sometimes omits it; inject as={RouterLink} when not present.
+  out = out.replace(
+    /(<SideNavLink\b)(?![^>]*\bas=)/g,
+    "$1 as={RouterLink}",
+  );
+
+  // Fix icon={<SomeIcon />} → icon={SomeIcon} — icon prop expects component ref, not JSX.
+  out = out.replace(/\bicon=\{<([A-Za-z]+Icon)\s*\/>\}/g, "icon={$1}");
 
   return out;
 }
@@ -85,7 +96,13 @@ async function generatePrototype(
   scenario: Scenario,
   layoutDescription: LayoutDescription,
   userInstruction: string | undefined,
+  archetypes: string[],
 ): Promise<StateOutput> {
+  const bladeDocs = getBladeDocs(archetypes);
+  const system = bladeDocs
+    ? `${SCENARIO_SYSTEM_PROMPT}\n\n---\n\n## BLADE REFERENCE DOCS (from @razorpay/blade-mcp — follow exactly)\n\n${bladeDocs}`
+    : SCENARIO_SYSTEM_PROMPT;
+
   const userContent = `Layout description:
 ${JSON.stringify(layoutDescription, null, 2)}
 
@@ -95,7 +112,7 @@ ${userInstruction ? `\nAdditional instruction: ${userInstruction}` : ""}
 
 Generate the prototype scenario. Output ONLY the GeneratedComponent function.`;
 
-  const raw = await callClaude(SCENARIO_SYSTEM_PROMPT, userContent);
+  const raw = await callClaude(system, userContent);
   return { jsx: cleanJsx(raw), description: scenario.description };
 }
 
@@ -118,11 +135,12 @@ Adapt the template for this scenario. Output ONLY the GeneratedComponent functio
 
 export async function POST(req: NextRequest) {
   try {
-    const { scenarios, layoutDescription, userInstruction } =
+    const { scenarios, layoutDescription, userInstruction, archetypes } =
       (await req.json()) as {
         scenarios: Scenario[];
         layoutDescription: LayoutDescription;
         userInstruction?: string;
+        archetypes?: string[];
       };
 
     const live = useLiveAI();
@@ -142,7 +160,7 @@ export async function POST(req: NextRequest) {
 
     // Pass 1: prototype (always first scenario)
     const protoScenario = scenarios.find((s) => s.name === "prototype") ?? scenarios[0];
-    const protoResult = await generatePrototype(protoScenario, layoutDescription, userInstruction);
+    const protoResult = await generatePrototype(protoScenario, layoutDescription, userInstruction, archetypes ?? []);
     states[protoScenario.name] = protoResult;
 
     // Pass 2: adapt all other scenarios from the prototype template

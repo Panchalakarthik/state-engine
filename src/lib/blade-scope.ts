@@ -1,3 +1,4 @@
+import React from "react";
 import {
   Box,
   Card,
@@ -24,32 +25,131 @@ import {
   EmptyState,
   Avatar,
   Switch,
+  // Navigation
+  SideNav,
+  SideNavBody,
+  SideNavSection,
+  SideNavLink,
+  SideNavItem,
+
+  SideNavFooter,
+  SideNavLevel,
+  TopNav,
+  TopNavBrand,
+  TopNavContent,
+  TopNavActions,
+  TabNav,
+  TabNavItem,
+  TabNavItems,
+  // Icons (common dashboard set)
+  HomeIcon,
+  DashboardIcon,
+  SettingsIcon,
+  UserIcon,
+  UsersIcon,
+  BellIcon,
+  SearchIcon,
+  PlusIcon,
+  EditIcon,
+  TrashIcon,
+  DownloadIcon,
+  UploadIcon,
+  CheckIcon,
+  CloseIcon,
+  WalletIcon,
+  BankIcon,
+  InfoIcon,
+  LayoutIcon,
+  MenuIcon,
+  ShieldIcon,
+  LockIcon,
+  RupeeIcon,
 } from "@razorpay/blade/components";
 
+// Stub router Link — satisfies SideNavLink / TabNavItem `as` prop in the eval canvas.
+// No real routing; navigation is driven by local state in the generated component.
+const RouterLink = React.forwardRef<
+  HTMLAnchorElement,
+  React.AnchorHTMLAttributes<HTMLAnchorElement>
+>(({ children, ...props }, ref) =>
+  React.createElement("a", { ref, ...props }, children),
+);
+RouterLink.displayName = "RouterLink";
+
 export const bladeScope: Record<string, unknown> = {
+  // Layout
   Box,
   Card,
   CardBody,
+  Divider,
+  // Text
   Text,
   Heading,
-  Skeleton,
-  Alert,
-  Button,
-  Badge,
-  Divider,
+  // Forms
   TextInput,
   TextArea,
   PasswordInput,
-  Link,
   Checkbox,
-  Amount,
-  Spinner,
-  Counter,
+  Switch,
+  // Actions
+  Button,
+  Link,
+  // Feedback
+  Alert,
+  Badge,
   Tag,
+  Skeleton,
+  Spinner,
+  // Data
+  Amount,
+  Counter,
+  // Lists
   List,
   ListItem,
   ListItemText,
+  // Empty
   EmptyState,
+  // User
   Avatar,
-  Switch,
+  // Navigation
+  SideNav,
+  SideNavBody,
+  SideNavSection,
+  SideNavLink,
+  SideNavItem,
+
+  SideNavFooter,
+  SideNavLevel,
+  TopNav,
+  TopNavBrand,
+  TopNavContent,
+  TopNavActions,
+  TabNav,
+  TabNavItem,
+  TabNavItems,
+  // Icons
+  HomeIcon,
+  DashboardIcon,
+  SettingsIcon,
+  UserIcon,
+  UsersIcon,
+  BellIcon,
+  SearchIcon,
+  PlusIcon,
+  EditIcon,
+  TrashIcon,
+  DownloadIcon,
+  UploadIcon,
+  CheckIcon,
+  CloseIcon,
+  WalletIcon,
+  BankIcon,
+  InfoIcon,
+  LayoutIcon,
+  MenuIcon,
+  ShieldIcon,
+  LockIcon,
+  RupeeIcon,
+  // Router stub — use as={RouterLink} in SideNavLink / TabNavItem
+  RouterLink,
 };

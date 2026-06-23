@@ -103,7 +103,7 @@ export function useGeneration(): UseGenerationReturn {
         const generateRes = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scenarios, layoutDescription }),
+          body: JSON.stringify({ scenarios, layoutDescription, archetypes }),
           signal: controller.signal,
         });
         if (!generateRes.ok) throw new Error("generate failed");

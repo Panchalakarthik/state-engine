@@ -70,6 +70,13 @@ Data:     Amount, Counter
 Lists:    List, ListItem, ListItemText
 Empty:    EmptyState
 User:     Avatar
+Nav:      SideNav, SideNavBody, SideNavSection, SideNavLink, SideNavFooter, SideNavLevel,
+          TopNav, TopNavBrand, TopNavContent, TopNavActions,
+          TabNav, TabNavItem, TabNavItems
+Icons:    HomeIcon, DashboardIcon, SettingsIcon, UserIcon, UsersIcon, BellIcon, SearchIcon,
+          PlusIcon, EditIcon, TrashIcon, DownloadIcon, UploadIcon, CheckIcon, CloseIcon,
+          WalletIcon, BankIcon, InfoIcon, LayoutIcon, MenuIcon, ShieldIcon, LockIcon, RupeeIcon
+Router stub: RouterLink (use as={RouterLink} in SideNavLink / TabNavItem — no react-router imports needed)
 React hooks: useState, useEffect, useRef, useCallback, useMemo
 
 Component usage hints:
@@ -87,10 +94,48 @@ Component usage hints:
     <ListItem><ListItemText>Refund issued · ₹340</ListItemText></ListItem>
   </List>
 
-NEVER use any component not in the list above (no Table, Select, Dropdown, Modal, Tooltip, Icon, ProgressBar, Tabs, OTPInput, etc.).
+NEVER use any component not in the list above (no Table, Select, Dropdown, Modal, Tooltip, ProgressBar, OTPInput, etc.).
+NEVER import from react-router-dom — RouterLink stub is already in scope, no import needed.
 For tabular data: build rows with Box (flexDirection="row") — max 4 data rows total.
-For multi-line text input: use <TextArea label="Bio" value={bio} onChange={(e)=>setBio(e.value||'')} /> — NEVER use <Box as="textarea">.
+For multi-line text input: use <TextArea label="Bio" value={bio} onChange={({ value }) => setBio(value ?? '')} /> — NEVER use <Box as="textarea">.
 Box "as" prop only accepts: div, section, footer, header, main, aside, nav, span, label. Never "textarea", "input", "button", or any other value.
+
+DASHBOARD LAYOUT PATTERN — use this structure for data-display / dashboard screens:
+function GeneratedComponent() {
+  const [page, setPage] = useState("overview");
+  return (
+    <Box display="flex" height="100vh">
+      <SideNav position="relative">
+        <SideNavBody>
+          <SideNavSection>
+            <SideNavLink as={RouterLink} href="#" icon={HomeIcon} title="Overview"
+              isActive={page === "overview"} onClick={() => setPage("overview")} />
+            <SideNavLink as={RouterLink} href="#" icon={WalletIcon} title="Payments"
+              isActive={page === "payments"} onClick={() => setPage("payments")} />
+            <SideNavLink as={RouterLink} href="#" icon={UsersIcon} title="Customers"
+              isActive={page === "customers"} onClick={() => setPage("customers")} />
+          </SideNavSection>
+        </SideNavBody>
+        <SideNavFooter>
+          <SideNavLink as={RouterLink} href="#" icon={SettingsIcon} title="Settings" />
+        </SideNavFooter>
+      </SideNav>
+      <Box display="flex" flexDirection="column" flex="1" overflow="auto">
+        <TopNav>
+          <TopNavBrand><Heading size="medium">Razorpay</Heading></TopNavBrand>
+          <TopNavActions><Avatar name="Priya Sharma" /></TopNavActions>
+        </TopNav>
+        <Box padding="spacing.6" display="flex" flexDirection="column" gap="spacing.5">
+          {/* metric cards, charts, tables here */}
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+- SideNavLink REQUIRES as={RouterLink} (always). Do NOT omit it.
+- Use icon={SomeIcon} on SideNavLink — icon is a component reference, NOT JSX: icon={HomeIcon} NOT icon={<HomeIcon/>}
+- SideNavSection children must be SideNavLink elements directly (no wrapping Box/div)
+- Icons: pass as component refs — icon={HomeIcon}, NOT <HomeIcon /> — when used as props
 
 DATA LIMITS — keep output short to avoid truncation:
 - Max 4 rows in any list or table
@@ -164,15 +209,17 @@ You will be given a scenario name and description that tells you exactly what th
 
 SCENARIO RENDERING RULES:
 - "prototype" scenario: the FULLY INTERACTIVE working version. Every field must be editable by the user:
-    • ALL inputs must be controlled with useState — value={state} onChange={(e)=>setState(e.value||'')}
+    • ALL inputs must be controlled with useState — value={state} onChange={({ value }) => setState(value ?? '')}
+    • Blade onChange fires ({ value }) — NEVER write (e) => setState(e.value) — e has no .value property
     • Pre-fill with realistic sample values so the user can see the screen is "loaded", but they can clear and type their own values
-    • TextArea: value={bio} onChange={(e)=>setBio(e.value||'')}
+    • TextArea: value={bio} onChange={({ value }) => setBio(value ?? '')}
     • Forms: Add INLINE validation — ONLY as derived const variables, NEVER as useState:
       - email fields: const isEmailValid = email === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
-        then: <TextInput validationState={isEmailValid ? "none" : "error"} errorText="Enter a valid email address" />
+        then: <TextInput value={email} onChange={({ value }) => setEmail(value ?? '')} validationState={isEmailValid ? "none" : "error"} errorText="Enter a valid email address" />
       - required fields: const canSubmit = email !== '' && password !== '' && isEmailValid;
         then: <Button isDisabled={!canSubmit}>
       - On submit button: onClick={() => { setIsLoading(true); setShowError(false); setTimeout(() => { setIsLoading(false); setShowError(true); }, 1500); }}
+      - PasswordInput onChange: onChange={({ value }) => setPassword(value ?? '')}
       - NEVER call setState outside of event handlers or useEffect — it causes infinite re-render loops
       - NEVER write onClick={handler()} — always onClick={handler} or onClick={() => handler()}
     • Dashboards: fully loaded with realistic sample data, all Badges showing real values, chart placeholder visible.
