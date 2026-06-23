@@ -36,7 +36,16 @@ export async function evalComponent(
 ): Promise<ComponentType> {
   const React = (await import("react")).default;
   const code = await compileJsx(jsxString);
-  const allScope = { React, ...scope };
+  // Expose React hooks as bare globals so generated components can be
+  // interactive (stateful) without writing `React.useState`.
+  const hooks = {
+    useState: React.useState,
+    useEffect: React.useEffect,
+    useRef: React.useRef,
+    useCallback: React.useCallback,
+    useMemo: React.useMemo,
+  };
+  const allScope = { React, ...hooks, ...scope };
   const keys = Object.keys(allScope);
   const values = Object.values(allScope);
   // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func

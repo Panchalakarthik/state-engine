@@ -30,6 +30,7 @@ CRITICAL OUTPUT FORMAT:
 - NO export statements
 - NO markdown fences or backticks
 - All Blade components (Box, Card, CardBody, Text, Heading, Skeleton, Alert, Button, Badge, Divider, TextInput, PasswordInput, Link, Checkbox) are available as globals
+- React hooks (useState, useEffect, useRef, useCallback, useMemo) are available as bare globals — use them to make the DEFAULT state interactive
 - Use JSX syntax
 - Card MUST wrap its content in a CardBody: <Card><CardBody><Text>...</Text></CardBody></Card>
 - Use Box with flexbox props (display="flex", flexDirection, gap="spacing.4") for layout. Do NOT use HTML div/span.
@@ -54,8 +55,14 @@ Blade Heading sizes: small, medium, large, xlarge
 Alert colors: information, positive, negative, notice`;
 
 export const STATE_SYSTEM_PROMPTS: Record<string, string> = {
-  default: `You generate the DEFAULT (happy path) state of UI screens using Razorpay Blade components.
+  default: `You generate the DEFAULT state of UI screens using Razorpay Blade components.
 Show the screen fully populated with realistic sample data. Use Text for values, Heading for titles.
+Make it a WORKING, interactive prototype with useState — not a static snapshot:
+- Forms: disable the submit Button while required fields are empty (isDisabled).
+  On submit, set a "submitting" state so the Button shows a spinner (isLoading)
+  and the inputs are disabled (isDisabled); then show an error by setting the
+  inputs to validationState="error" and rendering an Alert color="negative".
+- Inputs are controlled: value={state} onChange={(e)=>setState(e.value||"")}.
 Preserve the exact layout structure from the layoutDescription.
 ${BASE_RULES}`,
 

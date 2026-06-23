@@ -1,0 +1,77 @@
+{
+  "screenName": "Login Page",
+  "matchKeys": ["login", "log in", "sign in", "signin", "auth", "login page"],
+  "components": ["email field", "password field", "sign in button", "remember me"],
+  "archetypes": ["form"],
+  "layoutDescription": {
+    "screenName": "Login Page",
+    "components": [
+      { "id": "heading", "type": "heading", "role": "page title and subtitle" },
+      { "id": "email-field", "type": "text-input", "role": "collects the user email" },
+      { "id": "password-field", "type": "password-input", "role": "collects the password" },
+      { "id": "submit", "type": "button", "role": "submits the login form" }
+    ]
+  },
+  "states": {
+    "default": {
+      "description": "Default state",
+      "spec": {
+        "root": "root",
+        "elements": {
+          "root": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "alignItems": "center", "justifyContent": "center", "padding": "spacing.7" }, "children": ["wrap"] },
+          "wrap": { "type": "Box", "props": { "width": "100%", "maxWidth": "400px" }, "children": ["card"] },
+          "card": { "type": "Card", "props": { "padding": "spacing.7" }, "children": ["form"] },
+          "form": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.5" }, "children": ["titleblock", "email", "password", "row1", "submit", "row2"] },
+          "titleblock": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.2" }, "children": ["h", "sub"] },
+          "h": { "type": "Heading", "props": { "text": "Welcome back", "size": "large" }, "children": [] },
+          "sub": { "type": "Text", "props": { "text": "Sign in to your Razorpay account", "size": "small" }, "children": [] },
+          "email": { "type": "TextInput", "props": { "label": "Email", "placeholder": "you@company.com", "value": { "$bindState": "form.email" } }, "children": [] },
+          "password": { "type": "PasswordInput", "props": { "label": "Password", "placeholder": "Enter your password", "value": { "$bindState": "form.password" } }, "children": [] },
+          "row1": { "type": "Box", "props": { "display": "flex", "flexDirection": "row", "justifyContent": "space-between", "alignItems": "center" }, "children": ["remember", "forgot"] },
+          "remember": { "type": "Checkbox", "props": { "label": "Remember me" }, "children": [] },
+          "forgot": { "type": "Link", "props": { "text": "Forgot password?", "href": "#" }, "children": [] },
+          "submit": { "type": "Button", "props": { "text": "Sign in", "variant": "primary", "isFullWidth": true }, "children": [] },
+          "row2": { "type": "Box", "props": { "display": "flex", "flexDirection": "row", "justifyContent": "center", "gap": "spacing.2" }, "children": ["newtext", "create"] },
+          "newtext": { "type": "Text", "props": { "text": "New here?", "size": "small" }, "children": [] },
+          "create": { "type": "Link", "props": { "text": "Create an account", "href": "#" }, "children": [] }
+        }
+      }
+    },
+    "loading": {
+      "description": "Loading state",
+      "spec": {
+        "root": "root",
+        "elements": {
+          "root": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "alignItems": "center", "justifyContent": "center", "padding": "spacing.7" }, "children": ["wrap"] },
+          "wrap": { "type": "Box", "props": { "width": "100%", "maxWidth": "400px" }, "children": ["card"] },
+          "card": { "type": "Card", "props": { "padding": "spacing.7" }, "children": ["form"] },
+          "form": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.5" }, "children": ["s1", "s2", "s3", "s4", "s5"] },
+          "s1": { "type": "Skeleton", "props": { "width": "170px", "height": "28px" }, "children": [] },
+          "s2": { "type": "Skeleton", "props": { "width": "230px", "height": "16px" }, "children": [] },
+          "s3": { "type": "Skeleton", "props": { "width": "100%", "height": "48px", "borderRadius": "small" }, "children": [] },
+          "s4": { "type": "Skeleton", "props": { "width": "100%", "height": "48px", "borderRadius": "small" }, "children": [] },
+          "s5": { "type": "Skeleton", "props": { "width": "100%", "height": "44px", "borderRadius": "small" }, "children": [] }
+        }
+      }
+    },
+    "error": {
+      "description": "Error state",
+      "spec": {
+        "root": "root",
+        "elements": {
+          "root": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "alignItems": "center", "justifyContent": "center", "padding": "spacing.7" }, "children": ["wrap"] },
+          "wrap": { "type": "Box", "props": { "width": "100%", "maxWidth": "400px" }, "children": ["card"] },
+          "card": { "type": "Card", "props": { "padding": "spacing.7" }, "children": ["form"] },
+          "form": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.5" }, "children": ["titleblock", "alert", "email", "password", "submit"] },
+          "titleblock": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.2" }, "children": ["h", "sub"] },
+          "h": { "type": "Heading", "props": { "text": "Welcome back", "size": "large" }, "children": [] },
+          "sub": { "type": "Text", "props": { "text": "Sign in to your Razorpay account", "size": "small" }, "children": [] },
+          "alert": { "type": "Alert", "props": { "description": "Invalid email or password. Please try again.", "color": "negative" }, "children": [] },
+          "email": { "type": "TextInput", "props": { "label": "Email", "placeholder": "you@company.com", "validationState": "error" }, "children": [] },
+          "password": { "type": "PasswordInput", "props": { "label": "Password", "placeholder": "Enter your password", "validationState": "error" }, "children": [] },
+          "submit": { "type": "Button", "props": { "text": "Sign in", "variant": "primary", "isFullWidth": true }, "children": [] }
+        }
+      }
+    }
+  }
+}
