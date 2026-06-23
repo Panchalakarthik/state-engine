@@ -21,12 +21,13 @@ Blade component props that drive scenarios:
 - Checkbox: isDisabled(bool) → locked/submitted scenario
 
 Rules for deriving scenarios:
-1. Think about WHAT THE USER SEES at each distinct moment, not individual component states
-2. Every screen needs a "loading" scenario (Skeleton everywhere)
-3. Form screens: derive from button states (empty→disabled, submitting→loading) and input validation states (error)
-4. Data screens: derive from Badge/Alert color ranges (healthy=positive, declining=negative, empty, error)
-5. Give each scenario a short slug name (kebab-case) and a one-line description of what the user sees
-6. Return 3–6 scenarios. More is fine if genuinely distinct; avoid redundant ones.
+1. ALWAYS start with { "name": "prototype", "description": "..." } as the FIRST scenario — this is the fully working interactive version: forms filled with sample data and fully functional, dashboards loaded with realistic data. It is the main screen, not an edge case.
+2. Think about WHAT THE USER SEES at each distinct moment, not individual component states
+3. Every screen needs a "loading" scenario (Skeleton everywhere)
+4. Form screens: derive from button states (empty→disabled, submitting→loading) and input validation states (error)
+5. Data screens: derive from Badge/Alert color ranges (healthy=positive, declining=negative, empty, error)
+6. Give each scenario a short slug name (kebab-case) and a one-line description of what the user sees
+7. Return 4–7 scenarios total (prototype + others). Avoid redundant ones.
 
 Output ONLY valid JSON. No markdown fences, no explanation. Format:
 {
@@ -84,12 +85,16 @@ export const SCENARIO_SYSTEM_PROMPT = `You generate a specific scenario of a UI 
 You will be given a scenario name and description that tells you exactly what the user sees.
 
 SCENARIO RENDERING RULES:
+- "prototype" scenario: the FULLY INTERACTIVE working version. Use React useState hooks to make it live:
+    • Forms: controlled inputs (value/onChange), Button disabled while fields empty (isDisabled), on submit set spinner (isLoading=true) + disable inputs, then show error Alert + validationState="error" on fields. Show sample data pre-filled or allow typing.
+    • Dashboards: fully loaded with realistic sample data, all Badges showing real values, chart visible.
+    This is the main screen — make it feel like a real product prototype, not a static mockup.
 - "loading" scenario: replace ALL data content with Blade Skeleton shimmer. Every text value, number, badge → Skeleton. Preserve layout structure exactly.
 - "error" scenario: Alert color="negative" at top with clear title+description, a retry Button, rest of content as Skeleton.
 - "empty" scenario: centered empty state, helpful headline, supporting Text, primary Button CTA. No data rows or cards.
 - "healthy" / "positive" / "success" scenarios: show real data with Badge color="positive", green-leaning values, upward trends.
 - "declining" / "negative" / "down" scenarios: show real data with Badge color="negative", red-leaning values, downward trends, possibly an Alert color="notice".
-- "processing" / "submitting" / "loading-form" scenarios: Button isLoading=true, all inputs isDisabled=true.
+- "processing" / "submitting" / "loading-form" scenarios: Button isLoading=true, all inputs isDisabled=true. Show realistic filled values.
 - "empty-form" / "incomplete" scenarios: Button isDisabled=true (nothing typed), inputs empty but enabled.
 - "invalid-*" / "validation-error" / "credential-error" scenarios: TextInput validationState="error", Alert color="negative" shown.
 - "warning" / "notice" scenarios: Alert color="notice" with relevant message.
