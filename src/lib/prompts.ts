@@ -119,10 +119,15 @@ CHARTS — represent any chart (line, bar, area, pie) as a single Box placeholde
   </Box>
 In loading scenarios replace with: <Skeleton width="100%" height="160px" borderRadius="medium"/>
 
-COLORS — Blade Box only accepts design tokens for backgroundColor. NEVER use CSS colors:
-- Valid tokens: "surface.background.gray.subtle" | "surface.background.gray.moderate" | "surface.background.gray.intense" | "transparent"
-- NEVER: backgroundColor="white" | "black" | "gray" | "#fff" | "#1a1a2e" | any hex | any rgb | any named CSS color
-- The ONLY valid values are the four tokens listed above
+COLORS — Blade Box only accepts design tokens for backgroundColor. NEVER use CSS color names or hex:
+- NEVER: backgroundColor="white" | "black" | "blue" | "#fff" | "rgb(...)" — these crash at runtime
+- Gray scale:   "surface.background.gray.subtle" (lightest) | "surface.background.gray.moderate" | "surface.background.gray.intense" (darkest)
+- Brand/blue:   "surface.background.primary.subtle" | "surface.background.primary.intense"
+- Success/green:"surface.background.positive.subtle" | "surface.background.positive.intense"
+- Error/red:    "surface.background.negative.subtle" | "surface.background.negative.intense"
+- Warning:      "surface.background.notice.subtle" | "surface.background.notice.intense"
+- Transparent:  "transparent"
+Use primary tokens for brand panels (login left panel, hero sections), gray tokens for page backgrounds and cards.
 
 Example of correct output format:
 function GeneratedComponent() {

@@ -14,9 +14,22 @@ function getClient(): Anthropic {
 /** Map a CSS named color to the closest valid Blade backgroundColor token. */
 function remapNamedColor(color: string): string {
   const c = color.toLowerCase();
-  if (c === "white" || c === "snow" || c === "ivory" || c === "lightyellow" || c === "beige" || c === "mintcream")
-    return "surface.background.gray.subtle";
   if (c === "transparent") return "transparent";
+  if (["white", "snow", "ivory", "lightyellow", "beige", "mintcream", "whitesmoke", "ghostwhite"].includes(c))
+    return "surface.background.gray.subtle";
+  if (["blue", "royalblue", "cornflowerblue", "dodgerblue", "steelblue", "navy", "indigo", "violet", "purple", "darkblue"].includes(c))
+    return "surface.background.primary.intense";
+  if (["lightblue", "aliceblue", "lavender", "lightsteelblue"].includes(c))
+    return "surface.background.primary.subtle";
+  if (["green", "darkgreen", "lime", "limegreen", "forestgreen", "seagreen", "mediumseagreen"].includes(c))
+    return "surface.background.positive.intense";
+  if (["lightgreen", "honeydew", "palegreen"].includes(c))
+    return "surface.background.positive.subtle";
+  if (["red", "crimson", "firebrick", "darkred", "tomato", "orangered"].includes(c))
+    return "surface.background.negative.intense";
+  if (["orange", "darkorange", "gold", "yellow"].includes(c))
+    return "surface.background.notice.intense";
+  // All other named colors (black, gray, etc.) → darkest gray token
   return "surface.background.gray.intense";
 }
 
