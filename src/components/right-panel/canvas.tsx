@@ -70,7 +70,10 @@ export default function Canvas({ jsx, responsiveMode, isGenerating }: CanvasProp
     };
   }, [jsx]);
 
-  if (isGenerating) {
+  // Show loading only when the specific active state hasn't arrived yet.
+  // Once a state's JSX is available, render it immediately — even if other
+  // states are still being generated in parallel.
+  if (isGenerating && !jsx) {
     return (
       <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#0d0d0d]">
         <DotGrid />

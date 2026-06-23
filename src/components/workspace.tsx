@@ -7,13 +7,11 @@ import HistoryPanel from "./history-panel";
 import { useGeneration } from "@/hooks/use-generation";
 import { useSessions } from "@/hooks/use-sessions";
 
-/** Components are derived by the classify AI from the screen name. */
 const DEFAULT_COMPONENTS: string[] = [];
 
 export default function Workspace() {
   const [historyOpen, setHistoryOpen] = useState(false);
-  const { messages, isGenerating, generate, refine, abort, clearMessages } =
-    useGeneration();
+  const { messages, isGenerating, generate, refine, abort, clearMessages } = useGeneration();
   const {
     sessions,
     activeSession,
@@ -27,11 +25,9 @@ export default function Workspace() {
   const handleSend = useCallback(
     async (value: string) => {
       if (activeSession) {
-        const updated = await refine(activeSession, value);
-        if (updated) persistSession(updated);
+        await refine(activeSession, value, (updated) => persistSession(updated));
       } else {
-        const newSession = await generate(value, DEFAULT_COMPONENTS);
-        if (newSession) persistSession(newSession);
+        await generate(value, DEFAULT_COMPONENTS, (session) => persistSession(session));
       }
     },
     [activeSession, generate, refine, persistSession],
@@ -53,7 +49,15 @@ export default function Workspace() {
   const handleExport = useCallback(() => {
     if (!activeSession) return;
     const jsx = activeSession.states[activeSession.activeState]?.jsx ?? "";
-    void navigator.clipboard.writeText(jsx);
+    const screenName = activeSession.screenName.replace(/\s+/g, "-").toLowerCase();
+    const filename = `${screenName}-${activeSession.activeState}.tsx`;
+    const blob = new Blob([jsx], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }, [activeSession]);
 
   return (

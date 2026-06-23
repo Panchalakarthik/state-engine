@@ -1,13 +1,21 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import type { ChatMessage, Scenario, Session, LayoutDescription } from "@/lib/types";
+import type { ChatMessage, Scenario, Session, LayoutDescription, SSEEvent, StateOutput } from "@/lib/types";
 
 interface UseGenerationReturn {
   messages: ChatMessage[];
   isGenerating: boolean;
-  generate: (screenName: string, components: string[]) => Promise<Session | null>;
-  refine: (session: Session, instruction: string) => Promise<Session | null>;
+  generate: (
+    screenName: string,
+    components: string[],
+    onSession: (session: Session) => void,
+  ) => Promise<void>;
+  refine: (
+    session: Session,
+    instruction: string,
+    onSession: (session: Session) => void,
+  ) => Promise<void>;
   abort: () => void;
   clearMessages: () => void;
 }
@@ -17,13 +25,34 @@ function makeMsg(
   content: string,
   extra: Partial<ChatMessage> = {},
 ): ChatMessage {
-  return {
-    id: crypto.randomUUID(),
-    role,
-    content,
-    timestamp: Date.now(),
-    ...extra,
-  };
+  return { id: crypto.randomUUID(), role, content, timestamp: Date.now(), ...extra };
+}
+
+/** Parse an SSE fetch response body as an async generator of events. */
+async function* readSSE(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+): AsyncGenerator<SSEEvent> {
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() ?? "";
+
+    for (const part of parts) {
+      const line = part.trim();
+      if (!line.startsWith("data: ")) continue;
+      try {
+        yield JSON.parse(line.slice(6)) as SSEEvent;
+      } catch {
+        // skip malformed chunk
+      }
+    }
+  }
 }
 
 export function useGeneration(): UseGenerationReturn {
@@ -50,14 +79,15 @@ export function useGeneration(): UseGenerationReturn {
     async (
       screenName: string,
       components: string[],
-    ): Promise<Session | null> => {
+      onSession: (session: Session) => void,
+    ): Promise<void> => {
       const controller = new AbortController();
       abortRef.current = controller;
       setIsGenerating(true);
 
       push(makeMsg("user", screenName));
 
-      // ── Phase 1: Classify ────────────────────────────────────────────────
+      // ── Phase 1: Classify ─────────────────────────────────────────────────
       const classifyThinking = makeMsg("ai", "", {
         type: "thinking",
         phase: "Classifying your screen…",
@@ -79,24 +109,19 @@ export function useGeneration(): UseGenerationReturn {
           layoutDescription: LayoutDescription;
         };
 
-        const scenarioNames = scenarios.map((s) => s.name);
-
         update(classifyThinking.id, { isComplete: true });
 
-        // Typed confirmation between the two reasoning blocks
         push(
-          makeMsg(
-            "ai",
-            `Classified as ${archetypes.join(", ")} — ${scenarioNames.length} scenarios planned.`,
-            { type: "classified" },
-          ),
+          makeMsg("ai", `Classified as ${archetypes.join(", ")} — ${scenarios.length} scenarios planned.`, {
+            type: "classified",
+          }),
         );
 
-        // ── Phase 2: Generate ──────────────────────────────────────────────
+        // ── Phase 2: Stream generation ────────────────────────────────────
         const generateThinking = makeMsg("ai", "", {
           type: "thinking",
-          phase: `Generating ${scenarioNames.length} scenarios…`,
-          detail: `Building the prototype first, then adapting it into ${scenarioNames.length} distinct states: ${scenarioNames.join(" · ")}.`,
+          phase: `Generating ${scenarios.length} scenarios…`,
+          detail: `Building the prototype first, then adapting all ${scenarios.length} states in parallel: ${scenarios.map((s) => s.name).join(" · ")}.`,
         });
         push(generateThinking);
 
@@ -106,39 +131,59 @@ export function useGeneration(): UseGenerationReturn {
           body: JSON.stringify({ scenarios, layoutDescription, archetypes }),
           signal: controller.signal,
         });
-        if (!generateRes.ok) throw new Error("generate failed");
-        const { states } = await generateRes.json();
+        if (!generateRes.ok || !generateRes.body) throw new Error("generate failed");
 
-        const session: Session = {
-          id: crypto.randomUUID(),
+        // Build session skeleton immediately after classify so the session
+        // appears in history before any states arrive.
+        const sessionId = crypto.randomUUID();
+        const skeleton: Session = {
+          id: sessionId,
           screenName,
           components,
           archetypes,
-          scenarios,
           layoutDescription,
-          states,
-          activeState: scenarios[0]?.name ?? "loading",
+          scenarios,
+          states: {},
+          activeState: scenarios[0]?.name ?? "prototype",
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
 
+        const states: Record<string, StateOutput> = {};
+        let readyCount = 0;
+
+        for await (const event of readSSE(generateRes.body.getReader())) {
+          if (event.type === "state") {
+            states[event.name] = { jsx: event.jsx, description: event.description };
+            readyCount++;
+
+            // Progressive update — emit session after each arriving state so
+            // the canvas renders without waiting for all states to complete.
+            onSession({ ...skeleton, states: { ...states }, updatedAt: Date.now() });
+
+            update(generateThinking.id, {
+              phase: `Generating… ${readyCount} / ${scenarios.length} ready`,
+            });
+          } else if (event.type === "state_error") {
+            console.warn(`[generate] state "${event.name}" failed:`, event.message);
+          } else if (event.type === "error") {
+            throw new Error(event.message);
+          } else if (event.type === "done") {
+            break;
+          }
+        }
+
         update(generateThinking.id, { isComplete: true });
 
         push(
-          makeMsg(
-            "ai",
-            `${scenarioNames.length} scenarios ready — switch between them using the dropdown above.`,
-            { type: "result", stateNames: scenarioNames },
-          ),
+          makeMsg("ai", `${readyCount} scenarios ready — switch between them using the dropdown above.`, {
+            type: "result",
+            stateNames: scenarios.map((s) => s.name),
+          }),
         );
-
-        return session;
       } catch (err) {
-        if ((err as Error).name === "AbortError") return null;
-        push(
-          makeMsg("ai", "Generation failed. Please try again.", { type: "error" }),
-        );
-        return null;
+        if ((err as Error).name === "AbortError") return;
+        push(makeMsg("ai", "Generation failed. Please try again.", { type: "error" }));
       } finally {
         setIsGenerating(false);
       }
@@ -147,7 +192,11 @@ export function useGeneration(): UseGenerationReturn {
   );
 
   const refine = useCallback(
-    async (session: Session, instruction: string): Promise<Session | null> => {
+    async (
+      session: Session,
+      instruction: string,
+      onSession: (session: Session) => void,
+    ): Promise<void> => {
       const controller = new AbortController();
       abortRef.current = controller;
       setIsGenerating(true);
@@ -157,7 +206,7 @@ export function useGeneration(): UseGenerationReturn {
       const thinkingMsg = makeMsg("ai", "", {
         type: "thinking",
         phase: "Applying your change…",
-        detail: `Regenerating all ${session.scenarios.length} scenarios with your instruction applied to the prototype, then re-adapting each state.`,
+        detail: `Patching the prototype with your instruction, then re-adapting all ${session.scenarios.length} states in parallel.`,
       });
       push(thinkingMsg);
 
@@ -178,26 +227,41 @@ export function useGeneration(): UseGenerationReturn {
           }),
           signal: controller.signal,
         });
-        if (!generateRes.ok) throw new Error("generate failed");
-        const { states } = await generateRes.json();
+        if (!generateRes.ok || !generateRes.body) throw new Error("generate failed");
 
-        const updated: Session = { ...session, states, updatedAt: Date.now() };
+        const states: Record<string, StateOutput> = {};
+        let readyCount = 0;
+
+        for await (const event of readSSE(generateRes.body.getReader())) {
+          if (event.type === "state") {
+            states[event.name] = { jsx: event.jsx, description: event.description };
+            readyCount++;
+
+            onSession({ ...session, states: { ...states }, updatedAt: Date.now() });
+
+            update(thinkingMsg.id, {
+              phase: `Applying change… ${readyCount} / ${session.scenarios.length} ready`,
+            });
+          } else if (event.type === "state_error") {
+            console.warn(`[refine] state "${event.name}" failed:`, event.message);
+          } else if (event.type === "error") {
+            throw new Error(event.message);
+          } else if (event.type === "done") {
+            break;
+          }
+        }
 
         update(thinkingMsg.id, { isComplete: true });
-
         push(
-          makeMsg("ai", `Done — ${session.scenarios.length} scenarios updated.`, {
+          makeMsg("ai", `Done — ${readyCount} scenarios updated.`, {
             type: "result",
             stateNames: session.scenarios.map((s) => s.name),
           }),
         );
-
-        return updated;
       } catch (err) {
-        if ((err as Error).name === "AbortError") return null;
+        if ((err as Error).name === "AbortError") return;
         update(thinkingMsg.id, { isComplete: true });
         push(makeMsg("ai", "Refinement failed.", { type: "error" }));
-        return null;
       } finally {
         setIsGenerating(false);
       }

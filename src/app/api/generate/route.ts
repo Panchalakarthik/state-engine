@@ -1,46 +1,50 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { readFileSync } from "fs";
 import { join } from "path";
-import Anthropic from "@anthropic-ai/sdk";
-import { SCENARIO_SYSTEM_PROMPT, ADAPT_SCENARIO_PROMPT, TRANSLATE_RECIPE_PROMPT, REFINE_PROMPT } from "@/lib/prompts";
+import { z } from "zod";
+import { anthropic } from "@/lib/anthropic";
+import { checkRateLimit } from "@/lib/rate-limiter";
+import { LRUCache } from "@/lib/lru-cache";
+import {
+  SCENARIO_SYSTEM_PROMPT,
+  ADAPT_SCENARIO_PROMPT,
+  TRANSLATE_RECIPE_PROMPT,
+  REFINE_PROMPT,
+} from "@/lib/prompts";
 import { getBladeDocs } from "@/lib/blade-docs";
 import { useLiveAI } from "@/lib/ai-mode";
 import { findArtifact } from "@/lib/artifacts";
 import { findRecipe } from "@/lib/blade-recipes";
-import type { LayoutDescription, Scenario, StateOutput } from "@/lib/types";
+import type { LayoutDescription, Scenario, StateOutput, SSEEvent } from "@/lib/types";
 
-function getClient(): Anthropic {
-  return new Anthropic();
-}
+// ─── Zod schema ──────────────────────────────────────────────────────────────
 
-/** In-process cache: pattern doc content → translated canvas JSX. Survives hot reloads. */
-const recipeTranslationCache = new Map<string, string>();
+const GenerateSchema = z.object({
+  scenarios: z.array(z.object({ name: z.string(), description: z.string() })),
+  layoutDescription: z.object({
+    screenName: z.string(),
+    components: z.array(
+      z.object({
+        id: z.string(),
+        type: z.string(),
+        role: z.string(),
+        count: z.number().optional(),
+      }),
+    ),
+  }),
+  userInstruction: z.string().optional(),
+  archetypes: z.array(z.string()).optional(),
+  currentPrototypeJsx: z.string().optional(),
+});
 
-/**
- * Reads a blade-mcp pattern doc and asks the AI to translate it to canvas-compatible JSX.
- * Result is cached by doc content so identical docs are only translated once per process.
- */
-async function translateRecipeDoc(patternDoc: string): Promise<string | null> {
-  const docPath = join(
-    process.cwd(),
-    "node_modules/@razorpay/blade-mcp/knowledgebase/patterns",
-    `${patternDoc}.md`,
-  );
-  let docContent: string;
-  try {
-    docContent = readFileSync(docPath, "utf8");
-  } catch {
-    return null;
-  }
+type GenerateInput = z.infer<typeof GenerateSchema>;
 
-  const cached = recipeTranslationCache.get(docContent);
-  if (cached) return cached;
+// ─── Recipe translation cache (LRU, keyed by doc content) ────────────────────
+// Survives hot reloads; bounded so it can't grow unbounded on a long-running server.
 
-  const raw = await callClaude(TRANSLATE_RECIPE_PROMPT, docContent);
-  const jsx = cleanJsx(raw);
-  recipeTranslationCache.set(docContent, jsx);
-  return jsx;
-}
+const translationCache = new LRUCache<string, string>(20);
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Map a CSS named color to the closest valid Blade backgroundColor token. */
 function remapNamedColor(color: string): string {
@@ -60,24 +64,19 @@ function remapNamedColor(color: string): string {
     return "surface.background.negative.intense";
   if (["orange", "darkorange", "gold", "yellow"].includes(c))
     return "surface.background.notice.intense";
-  // All other named colors (black, gray, etc.) → darkest gray token
   return "surface.background.gray.intense";
 }
 
 function sanitizeJsx(jsx: string): string {
   let out = jsx
-    // Strip invalid `as` props from Box — Box only accepts div/section/etc.
     .replace(/(<Box\b[^>]*?)\s+as="[^"]*"/g, "$1")
-    // Replace hex/rgb backgroundColor with Blade token
     .replace(/backgroundColor="(#[^"]+|rgb[^"]+)"/g, 'backgroundColor="surface.background.gray.intense"')
-    // Replace CSS named colors (no dots = not a Blade token) with Blade token
     .replace(/backgroundColor="([a-zA-Z][a-zA-Z-]*)"/g, (_, color) =>
       `backgroundColor="${remapNamedColor(color)}"`,
     )
-    // Strip single-line style props — Blade doesn't support style={{}}
     .replace(/\bstyle=\{\{[^}]*\}\}/g, "");
 
-  // Fix ListItem children: Blade only accepts ListItemText (not Text/Box) inside ListItem.
+  // Blade only accepts ListItemText inside ListItem — not Text or Box.
   out = out.replace(
     /(<ListItem\b[^>]*>)([\s\S]*?)(<\/ListItem>)/g,
     (_, open, inner, close) =>
@@ -88,37 +87,39 @@ function sanitizeJsx(jsx: string): string {
       close,
   );
 
-  // Fix "too many re-renders": event handlers with immediate invocations like
-  // onClick={handleSubmit()} or onClick={setLoading(true)} — wrap in arrow function.
-  // Matches: onXxx={identifier(anything without nested braces or parens)}
+  // Wrap bare function calls in onClick/onChange handlers to prevent "too many re-renders".
   out = out.replace(
     /\b(on[A-Z][a-zA-Z]+)=\{([a-zA-Z_$][a-zA-Z0-9_$]*\([^{()]*\))\}/g,
     "$1={() => $2}",
   );
 
-  // Fix SideNav missing isExpanded — force always-expanded in canvas (no hover available).
-  out = out.replace(
-    /(<SideNav\b)(?![^>]*\bisExpanded=)/g,
-    "$1 isExpanded={true}",
-  );
+  // SideNav: force always-expanded + relative position in canvas (no hover CSS available).
+  out = out.replace(/(<SideNav\b)(?![^>]*\bisExpanded=)/g, "$1 isExpanded={true}");
+  out = out.replace(/(<SideNav\b)(?![^>]*\bposition=)/g, '$1 position="relative"');
 
-  // Fix SideNav missing position — must be "relative" so it stays in flex flow, not fixed.
-  out = out.replace(
-    /(<SideNav\b)(?![^>]*\bposition=)/g,
-    '$1 position="relative"',
-  );
+  // SideNavLink requires `as` prop — inject RouterLink stub when missing.
+  out = out.replace(/(<SideNavLink\b)(?![^>]*\bas=)/g, "$1 as={RouterLink}");
 
-  // Fix SideNavLink missing `as` prop — Blade requires it (crashes without it).
-  // AI sometimes omits it; inject as={RouterLink} when not present.
-  out = out.replace(
-    /(<SideNavLink\b)(?![^>]*\bas=)/g,
-    "$1 as={RouterLink}",
-  );
-
-  // Fix icon={<SomeIcon />} → icon={SomeIcon} — icon prop expects component ref, not JSX.
+  // icon prop expects a component reference, not a JSX element.
   out = out.replace(/\bicon=\{<([A-Za-z]+Icon)\s*\/>\}/g, "icon={$1}");
 
   return out;
+}
+
+/** Count open/close braces to detect truncated output more reliably than endsWith("}"). */
+function isBracketsBalanced(code: string): boolean {
+  let depth = 0;
+  let inString: '"' | "'" | "`" | null = null;
+  let escape = false;
+  for (const ch of code) {
+    if (escape) { escape = false; continue; }
+    if (ch === "\\" && inString) { escape = true; continue; }
+    if (inString) { if (ch === inString) inString = null; continue; }
+    if (ch === '"' || ch === "'" || ch === "`") { inString = ch; continue; }
+    if (ch === "{") depth++;
+    else if (ch === "}") { if (--depth < 0) return false; }
+  }
+  return depth === 0;
 }
 
 function cleanJsx(text: string): string {
@@ -126,29 +127,34 @@ function cleanJsx(text: string): string {
   cleaned = cleaned.replace(/^```(?:jsx|tsx|js|javascript)?\s*/i, "");
   cleaned = cleaned.replace(/```\s*$/i, "");
   cleaned = cleaned.trim();
-  if (!cleaned.endsWith("}")) {
-    throw new Error(
-      "Generated JSX was truncated (hit token limit). Regenerate or describe a simpler screen.",
-    );
+  if (!cleaned.endsWith("}") || !isBracketsBalanced(cleaned)) {
+    throw new Error("Generated JSX was truncated. Please try again.");
   }
   return sanitizeJsx(cleaned);
 }
 
+// ─── Claude call (shared across all generation functions) ─────────────────────
+
 async function callClaude(
   system: string,
   userContent: string,
+  signal?: AbortSignal,
 ): Promise<string> {
   let message;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      message = await getClient().messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 4096,
-        system,
-        messages: [{ role: "user", content: userContent }],
-      });
+      message = await anthropic.messages.create(
+        {
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 4096,
+          system,
+          messages: [{ role: "user", content: userContent }],
+        },
+        { signal },
+      );
       break;
     } catch (err) {
+      if ((err as Error).name === "AbortError") throw err;
       const status = (err as { status?: number }).status;
       if (status === 529 && attempt < 2) {
         await new Promise((r) => setTimeout(r, 3000 * (attempt + 1)));
@@ -161,16 +167,43 @@ async function callClaude(
   return message.content[0].type === "text" ? message.content[0].text : "";
 }
 
-/** Pass 1: generate the prototype (fully interactive). */
+// ─── Generation functions ─────────────────────────────────────────────────────
+
+async function translateRecipeDoc(
+  patternDoc: string,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  const docPath = join(
+    process.cwd(),
+    "node_modules/@razorpay/blade-mcp/knowledgebase/patterns",
+    `${patternDoc}.md`,
+  );
+  let docContent: string;
+  try {
+    docContent = readFileSync(docPath, "utf8");
+  } catch {
+    return null;
+  }
+
+  const cached = translationCache.get(docContent);
+  if (cached) return cached;
+
+  const raw = await callClaude(TRANSLATE_RECIPE_PROMPT, docContent, signal);
+  const jsx = cleanJsx(raw);
+  translationCache.set(docContent, jsx);
+  return jsx;
+}
+
 async function generatePrototype(
   scenario: Scenario,
   layoutDescription: LayoutDescription,
   userInstruction: string | undefined,
   archetypes: string[],
+  signal?: AbortSignal,
 ): Promise<StateOutput> {
   const bladeDocs = getBladeDocs(archetypes);
   const system = bladeDocs
-    ? `${SCENARIO_SYSTEM_PROMPT}\n\n---\n\n## BLADE REFERENCE DOCS (from @razorpay/blade-mcp — follow exactly)\n\n${bladeDocs}`
+    ? `${SCENARIO_SYSTEM_PROMPT}\n\n---\n\n## BLADE REFERENCE DOCS\n\n${bladeDocs}`
     : SCENARIO_SYSTEM_PROMPT;
 
   const userContent = `Layout description:
@@ -182,14 +215,14 @@ ${userInstruction ? `\nAdditional instruction: ${userInstruction}` : ""}
 
 Generate the prototype scenario. Output ONLY the GeneratedComponent function.`;
 
-  const raw = await callClaude(system, userContent);
+  const raw = await callClaude(system, userContent, signal);
   return { jsx: cleanJsx(raw), description: scenario.description };
 }
 
-/** Pass 2: adapt the prototype JSX to a different scenario state. */
 async function adaptScenario(
   prototypeJsx: string,
   scenario: Scenario,
+  signal?: AbortSignal,
 ): Promise<StateOutput> {
   const userContent = `TEMPLATE JSX (prototype — do not change structure):
 ${prototypeJsx}
@@ -199,15 +232,15 @@ What the user sees: ${scenario.description}
 
 Adapt the template for this scenario. Output ONLY the GeneratedComponent function.`;
 
-  const raw = await callClaude(ADAPT_SCENARIO_PROMPT, userContent);
+  const raw = await callClaude(ADAPT_SCENARIO_PROMPT, userContent, signal);
   return { jsx: cleanJsx(raw), description: scenario.description };
 }
 
-/**
- * Pass 1 (refine path): apply a user instruction to the existing prototype JSX.
- * Safer than full regeneration — preserves all handlers and structure.
- */
-async function refinePrototype(currentJsx: string, instruction: string): Promise<StateOutput> {
+async function refinePrototype(
+  currentJsx: string,
+  instruction: string,
+  signal?: AbortSignal,
+): Promise<StateOutput> {
   const userContent = `EXISTING JSX:
 ${currentJsx}
 
@@ -215,80 +248,132 @@ APPLY THIS CHANGE: ${instruction}
 
 Output ONLY the modified GeneratedComponent function.`;
 
-  const raw = await callClaude(REFINE_PROMPT, userContent);
+  const raw = await callClaude(REFINE_PROMPT, userContent, signal);
   return { jsx: cleanJsx(raw), description: instruction };
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const { scenarios, layoutDescription, userInstruction, archetypes, currentPrototypeJsx } =
-      (await req.json()) as {
-        scenarios: Scenario[];
-        layoutDescription: LayoutDescription;
-        userInstruction?: string;
-        archetypes?: string[];
-        currentPrototypeJsx?: string;
-      };
+// ─── Core generation orchestrator ────────────────────────────────────────────
 
-    const live = useLiveAI();
-    const states: Record<string, StateOutput> = {};
+async function runGeneration(
+  data: GenerateInput,
+  signal: AbortSignal,
+  send: (event: SSEEvent) => void,
+): Promise<void> {
+  const { scenarios, layoutDescription, userInstruction, archetypes, currentPrototypeJsx } = data;
 
-    if (!live) {
-      const artifact = findArtifact(layoutDescription.screenName);
-      const fallback = Object.values(artifact.states)[0] ?? {
-        jsx: "function GeneratedComponent(){return null;}",
-        description: "",
-      };
-      for (const s of scenarios) {
-        states[s.name] = artifact.states[s.name] ?? fallback;
-      }
-      return NextResponse.json({ states });
-    }
-
-    // Pass 1: prototype
-    // If a Blade recipe matches the screen name, use its hardcoded JSX directly.
-    // This ensures the generated output matches the actual Blade design system recipe.
-    // AI is only used for non-recipe screens.
-    const protoScenario = scenarios.find((s) => s.name === "prototype") ?? scenarios[0];
-    const recipe = findRecipe(layoutDescription.screenName);
-
-    let protoResult: StateOutput;
-    if (currentPrototypeJsx && userInstruction) {
-      // Refine path: user asked for a change on an existing result.
-      // Apply the delta to the current JSX instead of regenerating from scratch.
-      // This preserves all handlers, structure, and avoids Blade runtime crashes.
-      protoResult = await refinePrototype(currentPrototypeJsx, userInstruction);
-    } else if (recipe && !userInstruction) {
-      if (recipe.patternDoc) {
-        // Option B: read blade-mcp pattern doc and AI-translate to canvas JSX.
-        const translated = await translateRecipeDoc(recipe.patternDoc);
-        protoResult = translated
-          ? { jsx: translated, description: protoScenario.description }
-          : await generatePrototype(protoScenario, layoutDescription, undefined, archetypes ?? []);
-      } else if (recipe.prototypeJsx) {
-        // Hardcoded fallback (e.g. Login — no blade-mcp pattern doc exists).
-        protoResult = { jsx: recipe.prototypeJsx, description: protoScenario.description };
-      } else {
-        protoResult = await generatePrototype(protoScenario, layoutDescription, undefined, archetypes ?? []);
-      }
-    } else {
-      // No recipe, no existing JSX — full AI generation.
-      protoResult = await generatePrototype(protoScenario, layoutDescription, userInstruction, archetypes ?? []);
-    }
-    states[protoScenario.name] = protoResult;
-
-    // Pass 2: AI adapts the prototype to each scenario state (loading, declining, empty, etc.)
+  // Fixture mode — no API key needed, serves bundled artifacts.
+  if (!useLiveAI()) {
+    const artifact = findArtifact(layoutDescription.screenName);
+    const fallback = Object.values(artifact.states)[0] ?? {
+      jsx: "function GeneratedComponent(){return null;}",
+      description: "",
+    };
     for (const s of scenarios) {
-      if (s.name === protoScenario.name) continue;
-      states[s.name] = await adaptScenario(protoResult.jsx, s);
+      const state = artifact.states[s.name] ?? fallback;
+      send({ type: "state", name: s.name, jsx: state.jsx, description: state.description });
     }
-
-    return NextResponse.json({ states });
-  } catch (err) {
-    console.error("generate error:", err);
-    return NextResponse.json(
-      { error: (err as Error).message ?? "Generation failed" },
-      { status: 500 },
-    );
+    send({ type: "done" });
+    return;
   }
+
+  const protoScenario = scenarios.find((s) => s.name === "prototype") ?? scenarios[0];
+  const recipe = findRecipe(layoutDescription.screenName);
+
+  // ── Pass 1: prototype ─────────────────────────────────────────────────────
+  let protoResult: StateOutput;
+
+  if (currentPrototypeJsx && userInstruction) {
+    // Refine path: apply delta to existing JSX, preserving all handlers/structure.
+    protoResult = await refinePrototype(currentPrototypeJsx, userInstruction, signal);
+  } else if (recipe && !userInstruction) {
+    if (recipe.patternDoc) {
+      // Option B: translate blade-mcp pattern doc to canvas JSX (cached).
+      const translated = await translateRecipeDoc(recipe.patternDoc, signal);
+      protoResult = translated
+        ? { jsx: translated, description: protoScenario.description }
+        : await generatePrototype(protoScenario, layoutDescription, undefined, archetypes ?? [], signal);
+    } else if (recipe.prototypeJsx) {
+      // Hardcoded fallback (e.g. Login — no blade-mcp pattern doc exists).
+      protoResult = { jsx: recipe.prototypeJsx, description: protoScenario.description };
+    } else {
+      protoResult = await generatePrototype(protoScenario, layoutDescription, undefined, archetypes ?? [], signal);
+    }
+  } else {
+    protoResult = await generatePrototype(protoScenario, layoutDescription, userInstruction, archetypes ?? [], signal);
+  }
+
+  // Emit prototype immediately so the canvas can render without waiting for other states.
+  send({ type: "state", name: protoScenario.name, jsx: protoResult.jsx, description: protoResult.description });
+
+  // ── Pass 2: adapt remaining scenarios in PARALLEL ─────────────────────────
+  // Each state is emitted as soon as it resolves — not all at once at the end.
+  // Promise.allSettled ensures one failing state doesn't block the others.
+  const rest = scenarios.filter((s) => s.name !== protoScenario.name);
+
+  await Promise.allSettled(
+    rest.map(async (s) => {
+      try {
+        const result = await adaptScenario(protoResult.jsx, s, signal);
+        send({ type: "state", name: s.name, jsx: result.jsx, description: result.description });
+      } catch (err) {
+        if ((err as Error).name === "AbortError") throw err;
+        send({ type: "state_error", name: s.name, message: (err as Error).message ?? "Failed" });
+      }
+    }),
+  );
+
+  send({ type: "done" });
+}
+
+// ─── Route handler ────────────────────────────────────────────────────────────
+
+export async function POST(req: NextRequest) {
+  // Validate input
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400 });
+  }
+
+  const parsed = GenerateSchema.safeParse(body);
+  if (!parsed.success) {
+    return new Response(JSON.stringify({ error: "Invalid request", details: parsed.error.issues }), {
+      status: 400,
+    });
+  }
+
+  // Rate limit by IP (30 requests/min)
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (!checkRateLimit(`generate:${ip}`, { limit: 30, windowMs: 60_000 })) {
+    return new Response(JSON.stringify({ error: "Rate limit exceeded. Please wait a moment." }), {
+      status: 429,
+    });
+  }
+
+  // Stream SSE
+  const encoder = new TextEncoder();
+  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+  const writer = writable.getWriter();
+
+  function send(event: SSEEvent) {
+    writer.write(encoder.encode(`data: ${JSON.stringify(event)}\n\n`)).catch(() => {});
+  }
+
+  void runGeneration(parsed.data, req.signal, send)
+    .catch((err) => {
+      if ((err as Error).name !== "AbortError") {
+        send({ type: "error", message: (err as Error).message ?? "Generation failed" });
+      }
+    })
+    .finally(() => writer.close().catch(() => {}));
+
+  return new Response(readable, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }

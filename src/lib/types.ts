@@ -52,3 +52,11 @@ export interface ChatMessage {
 }
 
 export type ResponsiveMode = "desktop" | "tablet" | "mobile";
+
+// ─── Server-Sent Event shapes (generate route → client) ──────────────────────
+
+export type SSEEvent =
+  | { type: "state"; name: string; jsx: string; description: string }
+  | { type: "state_error"; name: string; message: string }
+  | { type: "error"; message: string }
+  | { type: "done" };
