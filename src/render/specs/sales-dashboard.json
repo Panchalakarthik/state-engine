@@ -1,0 +1,116 @@
+{
+  "screenName": "Sales Dashboard",
+  "matchKeys": ["sales dashboard", "dashboard", "sales", "analytics", "metrics"],
+  "components": ["metric cards", "line chart", "date filter", "transactions table"],
+  "archetypes": ["data-display"],
+  "layoutDescription": {
+    "screenName": "Sales Dashboard",
+    "components": [
+      { "id": "metric-cards", "type": "metric-card", "role": "shows aggregated KPIs", "count": 3 },
+      { "id": "revenue-chart", "type": "line-chart", "role": "shows revenue trend over time" },
+      { "id": "date-filter", "type": "date-picker", "role": "filters data by date range" },
+      { "id": "transactions-table", "type": "data-table", "role": "shows recent transactions" }
+    ]
+  },
+  "states": {
+    "default": {
+      "description": "Default state",
+      "spec": {
+        "root": "root",
+        "elements": {
+          "root": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.6", "padding": "spacing.7" }, "children": ["header", "metrics", "chart", "tx"] },
+          "header": { "type": "Box", "props": { "display": "flex", "flexDirection": "row", "justifyContent": "space-between", "alignItems": "center" }, "children": ["title", "live"] },
+          "title": { "type": "Heading", "props": { "text": "Sales Dashboard", "size": "large" }, "children": [] },
+          "live": { "type": "Badge", "props": { "text": "Live", "color": "positive" }, "children": [] },
+          "metrics": { "type": "Box", "props": { "display": "flex", "flexDirection": "row", "gap": "spacing.5" }, "children": ["m1", "m2", "m3"] },
+          "m1": { "type": "Card", "props": { "padding": "spacing.5" }, "children": ["m1b"] },
+          "m1b": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.2" }, "children": ["m1l", "m1v", "m1d"] },
+          "m1l": { "type": "Text", "props": { "text": "Total Revenue", "size": "small", "weight": "medium" }, "children": [] },
+          "m1v": { "type": "Heading", "props": { "text": "Rs 12,40,500", "size": "medium" }, "children": [] },
+          "m1d": { "type": "Badge", "props": { "text": "+12.5%", "color": "positive", "size": "small" }, "children": [] },
+          "m2": { "type": "Card", "props": { "padding": "spacing.5" }, "children": ["m2b"] },
+          "m2b": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.2" }, "children": ["m2l", "m2v", "m2d"] },
+          "m2l": { "type": "Text", "props": { "text": "Orders", "size": "small", "weight": "medium" }, "children": [] },
+          "m2v": { "type": "Heading", "props": { "text": "3,248", "size": "medium" }, "children": [] },
+          "m2d": { "type": "Badge", "props": { "text": "+4.1%", "color": "positive", "size": "small" }, "children": [] },
+          "m3": { "type": "Card", "props": { "padding": "spacing.5" }, "children": ["m3b"] },
+          "m3b": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.2" }, "children": ["m3l", "m3v", "m3d"] },
+          "m3l": { "type": "Text", "props": { "text": "Avg Order Value", "size": "small", "weight": "medium" }, "children": [] },
+          "m3v": { "type": "Heading", "props": { "text": "Rs 382", "size": "medium" }, "children": [] },
+          "m3d": { "type": "Badge", "props": { "text": "-1.8%", "color": "negative", "size": "small" }, "children": [] },
+          "chart": { "type": "Card", "props": { "padding": "spacing.5" }, "children": ["chartb"] },
+          "chartb": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.4" }, "children": ["chartt", "plot"] },
+          "chartt": { "type": "Text", "props": { "text": "Revenue Trend", "weight": "semibold" }, "children": [] },
+          "plot": { "type": "Box", "props": { "display": "flex", "flexDirection": "row", "alignItems": "flex-end", "gap": "spacing.3", "height": "180px", "padding": "spacing.4", "borderRadius": "medium", "backgroundColor": "surface.background.gray.subtle" }, "children": ["b1", "b2", "b3", "b4", "b5", "b6"] },
+          "b1": { "type": "Box", "props": { "width": "100%", "height": "96px", "borderRadius": "small", "backgroundColor": "surface.background.gray.moderate" }, "children": [] },
+          "b2": { "type": "Box", "props": { "width": "100%", "height": "128px", "borderRadius": "small", "backgroundColor": "surface.background.gray.moderate" }, "children": [] },
+          "b3": { "type": "Box", "props": { "width": "100%", "height": "72px", "borderRadius": "small", "backgroundColor": "surface.background.gray.moderate" }, "children": [] },
+          "b4": { "type": "Box", "props": { "width": "100%", "height": "152px", "borderRadius": "small", "backgroundColor": "surface.background.gray.moderate" }, "children": [] },
+          "b5": { "type": "Box", "props": { "width": "100%", "height": "112px", "borderRadius": "small", "backgroundColor": "surface.background.gray.moderate" }, "children": [] },
+          "b6": { "type": "Box", "props": { "width": "100%", "height": "136px", "borderRadius": "small", "backgroundColor": "surface.background.gray.moderate" }, "children": [] },
+          "tx": { "type": "Card", "props": { "padding": "spacing.5" }, "children": ["txb"] },
+          "txb": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.4" }, "children": ["txt", "txlist"] },
+          "txt": { "type": "Text", "props": { "text": "Recent Transactions", "weight": "semibold" }, "children": [] },
+          "txlist": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.3" }, "children": ["r1", "dv1", "r2", "dv2", "r3"] },
+          "r1": { "type": "Box", "props": { "display": "flex", "flexDirection": "row", "justifyContent": "space-between" }, "children": ["r1a", "r1b"] },
+          "r1a": { "type": "Text", "props": { "text": "TXN-4821 / Acme Corp", "size": "small" }, "children": [] },
+          "r1b": { "type": "Text", "props": { "text": "Rs 4,200", "size": "small", "weight": "semibold" }, "children": [] },
+          "dv1": { "type": "Divider", "props": {}, "children": [] },
+          "r2": { "type": "Box", "props": { "display": "flex", "flexDirection": "row", "justifyContent": "space-between" }, "children": ["r2a", "r2b"] },
+          "r2a": { "type": "Text", "props": { "text": "TXN-4820 / Globex", "size": "small" }, "children": [] },
+          "r2b": { "type": "Text", "props": { "text": "Rs 1,150", "size": "small", "weight": "semibold" }, "children": [] },
+          "dv2": { "type": "Divider", "props": {}, "children": [] },
+          "r3": { "type": "Box", "props": { "display": "flex", "flexDirection": "row", "justifyContent": "space-between" }, "children": ["r3a", "r3b"] },
+          "r3a": { "type": "Text", "props": { "text": "TXN-4819 / Initech", "size": "small" }, "children": [] },
+          "r3b": { "type": "Text", "props": { "text": "Rs 9,800", "size": "small", "weight": "semibold" }, "children": [] }
+        }
+      }
+    },
+    "loading": {
+      "description": "Loading state",
+      "spec": {
+        "root": "root",
+        "elements": {
+          "root": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.6", "padding": "spacing.7" }, "children": ["header", "metrics", "chart"] },
+          "header": { "type": "Box", "props": { "display": "flex", "flexDirection": "row", "justifyContent": "space-between", "alignItems": "center" }, "children": ["s1", "s2"] },
+          "s1": { "type": "Skeleton", "props": { "width": "190px", "height": "28px" }, "children": [] },
+          "s2": { "type": "Skeleton", "props": { "width": "52px", "height": "20px" }, "children": [] },
+          "metrics": { "type": "Box", "props": { "display": "flex", "flexDirection": "row", "gap": "spacing.5" }, "children": ["c1", "c2", "c3"] },
+          "c1": { "type": "Card", "props": { "padding": "spacing.5" }, "children": ["c1b"] },
+          "c1b": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.3" }, "children": ["c1s1", "c1s2", "c1s3"] },
+          "c1s1": { "type": "Skeleton", "props": { "width": "90px", "height": "14px" }, "children": [] },
+          "c1s2": { "type": "Skeleton", "props": { "width": "120px", "height": "24px" }, "children": [] },
+          "c1s3": { "type": "Skeleton", "props": { "width": "60px", "height": "16px" }, "children": [] },
+          "c2": { "type": "Card", "props": { "padding": "spacing.5" }, "children": ["c2b"] },
+          "c2b": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.3" }, "children": ["c2s1", "c2s2", "c2s3"] },
+          "c2s1": { "type": "Skeleton", "props": { "width": "90px", "height": "14px" }, "children": [] },
+          "c2s2": { "type": "Skeleton", "props": { "width": "120px", "height": "24px" }, "children": [] },
+          "c2s3": { "type": "Skeleton", "props": { "width": "60px", "height": "16px" }, "children": [] },
+          "c3": { "type": "Card", "props": { "padding": "spacing.5" }, "children": ["c3b"] },
+          "c3b": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.3" }, "children": ["c3s1", "c3s2", "c3s3"] },
+          "c3s1": { "type": "Skeleton", "props": { "width": "90px", "height": "14px" }, "children": [] },
+          "c3s2": { "type": "Skeleton", "props": { "width": "120px", "height": "24px" }, "children": [] },
+          "c3s3": { "type": "Skeleton", "props": { "width": "60px", "height": "16px" }, "children": [] },
+          "chart": { "type": "Card", "props": { "padding": "spacing.5" }, "children": ["chb"] },
+          "chb": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.4" }, "children": ["chs1", "chs2"] },
+          "chs1": { "type": "Skeleton", "props": { "width": "130px", "height": "18px" }, "children": [] },
+          "chs2": { "type": "Skeleton", "props": { "width": "100%", "height": "160px", "borderRadius": "small" }, "children": [] }
+        }
+      }
+    },
+    "error": {
+      "description": "Error state",
+      "spec": {
+        "root": "root",
+        "elements": {
+          "root": { "type": "Box", "props": { "display": "flex", "flexDirection": "column", "gap": "spacing.6", "padding": "spacing.7" }, "children": ["title", "alert", "actions"] },
+          "title": { "type": "Heading", "props": { "text": "Sales Dashboard", "size": "large" }, "children": [] },
+          "alert": { "type": "Alert", "props": { "title": "Failed to load dashboard", "description": "We could not fetch your sales data. Check your connection and try again.", "color": "negative" }, "children": [] },
+          "actions": { "type": "Box", "props": { "display": "flex", "flexDirection": "row", "gap": "spacing.4" }, "children": ["retry", "support"] },
+          "retry": { "type": "Button", "props": { "text": "Retry", "variant": "primary" }, "children": [] },
+          "support": { "type": "Button", "props": { "text": "Contact support", "variant": "tertiary" }, "children": [] }
+        }
+      }
+    }
+  }
+}
