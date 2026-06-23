@@ -175,46 +175,52 @@ You will be given a scenario name and description that tells you exactly what th
 ╔══════════════════════════════════════════════════════════════════╗
 ║  DASHBOARD SCREENS — MANDATORY LAYOUT (data-display archetype)  ║
 ╚══════════════════════════════════════════════════════════════════╝
-If the screen is a dashboard, admin panel, analytics screen, or any data-display screen,
-you MUST use SideNav + TopNav layout. No exceptions. The outer structure is ALWAYS:
+If the screen is a dashboard, analytics screen, admin panel, or any data-display screen,
+you MUST use this exact two-column layout. No exceptions.
 
 function GeneratedComponent() {
   const [page, setPage] = useState("overview");
   return (
-    <Box display="flex">
-      <SideNav position="relative">
-        <SideNavBody>
-          <SideNavSection>
-            <SideNavLink as={RouterLink} href="#" icon={HomeIcon} title="Overview"
-              isActive={page === "overview"} onClick={() => setPage("overview")} />
-            <SideNavLink as={RouterLink} href="#" icon={WalletIcon} title="Payments"
-              isActive={page === "payments"} onClick={() => setPage("payments")} />
-            <SideNavLink as={RouterLink} href="#" icon={UsersIcon} title="Customers"
-              isActive={page === "customers"} onClick={() => setPage("customers")} />
-          </SideNavSection>
-        </SideNavBody>
-        <SideNavFooter>
-          <SideNavLink as={RouterLink} href="#" icon={SettingsIcon} title="Settings" />
-        </SideNavFooter>
-      </SideNav>
+    <Box display="flex" minHeight="700px">
+      <Box width="220px" flexShrink="0" backgroundColor="surface.background.gray.intense"
+           display="flex" flexDirection="column" padding="spacing.4" gap="spacing.1">
+        <Box padding="spacing.3" marginBottom="spacing.3">
+          <Heading size="medium">Razorpay</Heading>
+        </Box>
+        <Box padding="spacing.3" borderRadius="medium"
+             backgroundColor={page === "overview" ? "surface.background.gray.moderate" : "transparent"}
+             onClick={() => setPage("overview")}>
+          <Text size="small" color="surface.text.gray.normal">Overview</Text>
+        </Box>
+        <Box padding="spacing.3" borderRadius="medium"
+             backgroundColor={page === "payments" ? "surface.background.gray.moderate" : "transparent"}
+             onClick={() => setPage("payments")}>
+          <Text size="small" color="surface.text.gray.normal">Payments</Text>
+        </Box>
+        <Box padding="spacing.3" borderRadius="medium"
+             backgroundColor={page === "customers" ? "surface.background.gray.moderate" : "transparent"}
+             onClick={() => setPage("customers")}>
+          <Text size="small" color="surface.text.gray.normal">Customers</Text>
+        </Box>
+      </Box>
       <Box display="flex" flexDirection="column" flex="1">
         <TopNav>
-          <TopNavBrand><Heading size="medium">Razorpay</Heading></TopNavBrand>
+          <TopNavBrand><Heading size="medium">Sample Dashboard</Heading></TopNavBrand>
           <TopNavActions><Avatar name="Priya Sharma" /></TopNavActions>
         </TopNav>
         <Box padding="spacing.6" display="flex" flexDirection="column" gap="spacing.5">
-          {/* metric cards, chart placeholders, transaction list etc. */}
+          {/* metric cards, chart placeholders, recent transactions etc. */}
         </Box>
       </Box>
     </Box>
   );
 }
 
-SideNav rules (REQUIRED — violating these causes render errors):
-- SideNavLink ALWAYS needs as={RouterLink}. NEVER omit it.
-- icon prop = component reference: icon={HomeIcon} — NEVER icon={<HomeIcon />}
-- SideNavSection children = SideNavLink elements only (no Box or div wrapper)
-- NEVER import from react-router-dom — RouterLink is already in scope as a global
+Dashboard sidebar rules:
+- The LEFT column (220px Box) is the sidebar with nav items — NO SideNav component, just Box
+- The RIGHT column wraps TopNav + page content using flex="1"
+- Each sidebar nav item is a Box with onClick to switch pages
+- Use backgroundColor token for active state — NEVER hex, NEVER style prop
 
 SCENARIO RENDERING RULES:
 - "prototype" scenario: the FULLY INTERACTIVE working version. Every field must be editable by the user:
