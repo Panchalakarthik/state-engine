@@ -73,8 +73,9 @@ export default function Workspace() {
         onAbort={abort}
       />
       <RightPanel
+        scenarios={activeSession?.scenarios ?? []}
         states={activeSession?.states ?? {}}
-        activeState={activeSession?.activeState ?? "default"}
+        activeState={activeSession?.activeState ?? ""}
         onStateChange={handleStateChange}
         onExport={handleExport}
       />

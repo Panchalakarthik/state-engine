@@ -1,6 +1,6 @@
 export const CLASSIFY_SYSTEM_PROMPT = `You are a screen classifier for a UI state derivation engine.
 
-Given a screen name and its UI components, classify it into archetypes and return a structured layout description.
+Given a screen name and its UI components, classify it into archetypes, derive meaningful scenarios, and return a structured layout description.
 
 Archetypes:
 - data-display: dashboards, metric cards, charts, aggregated KPI data
@@ -9,9 +9,35 @@ Archetypes:
 - detail: single entity shown in depth
 - feed: chronological or infinite-scroll content
 
+SCENARIO DERIVATION — read the component props below and reason about what states a real user encounters:
+
+Blade component props that drive scenarios:
+- Button: isLoading(bool) → processing/submitting scenario; isDisabled(bool) → empty/incomplete scenario
+- TextInput: validationState("none"|"error") + checks([{type,message}]) → validation-error, invalid-format scenarios
+- PasswordInput: validationState("none"|"error") → credential-error scenario
+- Badge: color("positive"|"negative"|"neutral"|"notice") → healthy vs declining scenarios for metric screens
+- Alert: color("positive"|"negative"|"information"|"notice") → success, error, warning outcome scenarios
+- Skeleton: replaces ANY component → always implies a "loading" scenario
+- Checkbox: isDisabled(bool) → locked/submitted scenario
+
+Rules for deriving scenarios:
+1. Think about WHAT THE USER SEES at each distinct moment, not individual component states
+2. Every screen needs a "loading" scenario (Skeleton everywhere)
+3. Form screens: derive from button states (empty→disabled, submitting→loading) and input validation states (error)
+4. Data screens: derive from Badge/Alert color ranges (healthy=positive, declining=negative, empty, error)
+5. Give each scenario a short slug name (kebab-case) and a one-line description of what the user sees
+6. Return 3–6 scenarios. More is fine if genuinely distinct; avoid redundant ones.
+
 Output ONLY valid JSON. No markdown fences, no explanation. Format:
 {
   "archetypes": ["data-display"],
+  "scenarios": [
+    { "name": "loading", "description": "All content is skeleton shimmer, page is fetching data" },
+    { "name": "healthy", "description": "All metrics positive, Badge color=positive, revenue up" },
+    { "name": "declining", "description": "Revenue and transactions down, Badge color=negative" },
+    { "name": "empty", "description": "No data yet, empty state with onboarding CTA" },
+    { "name": "error", "description": "API failed, Alert color=negative, retry button visible" }
+  ],
   "layoutDescription": {
     "screenName": "string",
     "components": [
@@ -54,37 +80,21 @@ Blade Text sizes: xsmall, small, medium, large
 Blade Heading sizes: small, medium, large, xlarge
 Alert colors: information, positive, negative, notice`;
 
-export const STATE_SYSTEM_PROMPTS: Record<string, string> = {
-  default: `You generate the DEFAULT state of UI screens using Razorpay Blade components.
-Show the screen fully populated with realistic sample data. Use Text for values, Heading for titles.
-Make it a WORKING, interactive prototype with useState — not a static snapshot:
-- Forms: disable the submit Button while required fields are empty (isDisabled).
-  On submit, set a "submitting" state so the Button shows a spinner (isLoading)
-  and the inputs are disabled (isDisabled); then show an error by setting the
-  inputs to validationState="error" and rendering an Alert color="negative".
-- Inputs are controlled: value={state} onChange={(e)=>setState(e.value||"")}.
-Preserve the exact layout structure from the layoutDescription.
-${BASE_RULES}`,
+export const SCENARIO_SYSTEM_PROMPT = `You generate a specific scenario of a UI screen using Razorpay Blade components.
+You will be given a scenario name and description that tells you exactly what the user sees.
 
-  loading: `You generate the LOADING state of UI screens using Razorpay Blade components.
-Replace ALL data content with Blade Skeleton shimmer components. Preserve the exact layout structure.
-Use <Skeleton width="120px" height="16px" /> for text, larger skeletons for cards and charts.
-Do NOT show any real data. Every piece of content must be a Skeleton.
-${BASE_RULES}`,
+SCENARIO RENDERING RULES:
+- "loading" scenario: replace ALL data content with Blade Skeleton shimmer. Every text value, number, badge → Skeleton. Preserve layout structure exactly.
+- "error" scenario: Alert color="negative" at top with clear title+description, a retry Button, rest of content as Skeleton.
+- "empty" scenario: centered empty state, helpful headline, supporting Text, primary Button CTA. No data rows or cards.
+- "healthy" / "positive" / "success" scenarios: show real data with Badge color="positive", green-leaning values, upward trends.
+- "declining" / "negative" / "down" scenarios: show real data with Badge color="negative", red-leaning values, downward trends, possibly an Alert color="notice".
+- "processing" / "submitting" / "loading-form" scenarios: Button isLoading=true, all inputs isDisabled=true.
+- "empty-form" / "incomplete" scenarios: Button isDisabled=true (nothing typed), inputs empty but enabled.
+- "invalid-*" / "validation-error" / "credential-error" scenarios: TextInput validationState="error", Alert color="negative" shown.
+- "warning" / "notice" scenarios: Alert color="notice" with relevant message.
+- For any other scenario name, read the description carefully and render accordingly.
 
-  error: `You generate the ERROR state of UI screens using Razorpay Blade components.
-Show an Alert at the top with color="negative", a clear title and description, and a retry Button.
-Keep the rest of the layout structure intact but use Skeleton for content areas.
-Example: <Alert color="negative" title="Failed to load data" description="Something went wrong. Please try again." isDismissible={false} />
-${BASE_RULES}`,
-
-  empty: `You generate the EMPTY state of UI screens using Razorpay Blade components.
-Show a centered empty state with a helpful headline, supporting text, and a primary Button CTA.
-Do NOT show any data rows, charts, or cards. Use Box with display="flex" flexDirection="column" alignItems="center".
-${BASE_RULES}`,
-
-  partial: `You generate the PARTIAL DATA state of UI screens using Razorpay Blade components.
-Some components have loaded (show real data), others are still loading (show Skeleton).
-For a data-display screen: metric cards show data, chart and table show Skeleton.
-${BASE_RULES}`,
-};
+Always use realistic Razorpay-relevant sample data (INR amounts, Indian company names, payment IDs like TXN-XXXX).
+Preserve the exact layout structure from the layoutDescription across all scenarios.
+${BASE_RULES}`;

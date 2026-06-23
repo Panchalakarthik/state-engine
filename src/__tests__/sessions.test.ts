@@ -32,6 +32,7 @@ const makeSession = (overrides: Partial<Session> = {}): Session => ({
   screenName: "Sales Dashboard",
   components: ["metric-cards", "line-chart"],
   archetypes: ["data-display"],
+  scenarios: [{ name: "loading", description: "All skeleton" }],
   layoutDescription: { screenName: "Sales Dashboard", components: [] },
   states: {
     default: {

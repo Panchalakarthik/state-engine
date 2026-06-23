@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { ResponsiveMode } from "@/lib/types";
+import type { ResponsiveMode, Scenario } from "@/lib/types";
 import StateDropdown from "@/components/state-dropdown";
 
 interface RightHeaderProps {
-  states: string[];
+  scenarios: Scenario[];
   activeState: string;
   responsiveMode: ResponsiveMode;
   onResponsiveChange: (mode: ResponsiveMode) => void;
@@ -79,7 +79,7 @@ const responsiveModes: {
 ];
 
 export default function RightHeader({
-  states,
+  scenarios,
   activeState,
   responsiveMode,
   onResponsiveChange,
@@ -98,7 +98,7 @@ export default function RightHeader({
     <div className="flex h-[46px] flex-shrink-0 items-center gap-2 border-b border-[#1a1a1a] bg-[#111] px-3.5">
       <div className="flex flex-1 items-center gap-2">
         <StateDropdown
-          states={states}
+          scenarios={scenarios}
           activeState={activeState}
           onChange={onStateChange}
         />
@@ -130,7 +130,7 @@ export default function RightHeader({
         </button>
         <button
           onClick={handleExport}
-          disabled={states.length === 0}
+          disabled={scenarios.length === 0}
           className="flex items-center gap-1.5 rounded-[7px] border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-[5px] text-[12px] text-[#bbb] transition-colors hover:bg-[#202020] disabled:cursor-not-allowed disabled:opacity-40"
         >
           <svg

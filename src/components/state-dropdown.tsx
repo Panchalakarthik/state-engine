@@ -1,15 +1,23 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import type { Scenario } from "@/lib/types";
 
 interface StateDropdownProps {
-  states: string[];
+  scenarios: Scenario[];
   activeState: string;
   onChange: (state: string) => void;
 }
 
+function toLabel(name: string) {
+  return name
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 export default function StateDropdown({
-  states,
+  scenarios,
   activeState,
   onChange,
 }: StateDropdownProps) {
@@ -26,14 +34,16 @@ export default function StateDropdown({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (states.length === 0) {
+  if (scenarios.length === 0) {
     return (
       <div className="flex items-center gap-1.5 rounded-[7px] border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-1 text-[12.5px] text-[#555]">
         <div className="h-1.5 w-1.5 rounded-full bg-[#333]" />
-        No states yet
+        No scenarios yet
       </div>
     );
   }
+
+  const active = scenarios.find((s) => s.name === activeState) ?? scenarios[0];
 
   return (
     <div ref={ref} className="relative">
@@ -42,7 +52,7 @@ export default function StateDropdown({
         className="flex items-center gap-1.5 rounded-[7px] border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-1 text-[12.5px] text-[#ccc] transition-colors hover:bg-[#202020]"
       >
         <div className="h-1.5 w-1.5 rounded-full bg-[#22c55e]" />
-        State: {activeState.charAt(0).toUpperCase() + activeState.slice(1)}
+        {toLabel(active.name)}
         <svg
           width="12"
           height="12"
@@ -56,21 +66,24 @@ export default function StateDropdown({
         </svg>
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] shadow-xl">
-          {states.map((state) => (
+        <div className="absolute left-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] shadow-xl">
+          {scenarios.map((scenario) => (
             <button
-              key={state}
+              key={scenario.name}
               onClick={() => {
-                onChange(state);
+                onChange(scenario.name);
                 setOpen(false);
               }}
-              className={`w-full px-3 py-2 text-left text-[13px] transition-colors ${
-                state === activeState
+              className={`w-full px-3 py-2.5 text-left transition-colors ${
+                scenario.name === activeState
                   ? "bg-[#1e1e2e] text-[#818cf8]"
                   : "text-[#ccc] hover:bg-[#222]"
               }`}
             >
-              {state.charAt(0).toUpperCase() + state.slice(1)}
+              <div className="text-[13px] font-medium">{toLabel(scenario.name)}</div>
+              <div className="mt-0.5 text-[11px] text-[#555] leading-snug">
+                {scenario.description}
+              </div>
             </button>
           ))}
         </div>

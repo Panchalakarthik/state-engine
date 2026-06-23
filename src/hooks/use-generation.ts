@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import type { ChatMessage, Session, LayoutDescription } from "@/lib/types";
+import type { ChatMessage, Scenario, Session, LayoutDescription } from "@/lib/types";
 
 interface UseGenerationReturn {
   messages: ChatMessage[];
@@ -62,15 +62,17 @@ export function useGeneration(): UseGenerationReturn {
           signal: controller.signal,
         });
         if (!classifyRes.ok) throw new Error("classify failed");
-        const { archetypes, layoutDescription } = (await classifyRes.json()) as {
+        const { archetypes, scenarios, layoutDescription } = (await classifyRes.json()) as {
           archetypes: string[];
+          scenarios: Scenario[];
           layoutDescription: LayoutDescription;
         };
 
+        const scenarioNames = scenarios.map((s) => s.name);
         push(
           makeMsg(
             "ai",
-            `Classified as ${archetypes.join(", ")}. Generating states in parallel...`,
+            `Classified as ${archetypes.join(", ")}. Generating ${scenarioNames.length} scenarios: ${scenarioNames.join(", ")}...`,
             { type: "classified" },
           ),
         );
@@ -78,21 +80,21 @@ export function useGeneration(): UseGenerationReturn {
         const generateRes = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ archetypes, layoutDescription }),
+          body: JSON.stringify({ scenarios, layoutDescription }),
           signal: controller.signal,
         });
         if (!generateRes.ok) throw new Error("generate failed");
         const { states } = await generateRes.json();
-        const stateNames = Object.keys(states);
 
         const session: Session = {
           id: crypto.randomUUID(),
           screenName,
           components,
           archetypes,
+          scenarios,
           layoutDescription,
           states,
-          activeState: "default",
+          activeState: scenarios[0]?.name ?? "loading",
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
@@ -100,8 +102,8 @@ export function useGeneration(): UseGenerationReturn {
         push(
           makeMsg(
             "ai",
-            `${stateNames.length} states ready. Layout is locked across all states.`,
-            { type: "result", stateNames },
+            `${scenarioNames.length} scenarios ready: ${scenarioNames.join(" · ")}`,
+            { type: "result", stateNames: scenarioNames },
           ),
         );
 
@@ -135,7 +137,7 @@ export function useGeneration(): UseGenerationReturn {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            archetypes: session.archetypes,
+            scenarios: session.scenarios,
             layoutDescription: session.layoutDescription,
             userInstruction: instruction,
           }),
@@ -151,9 +153,9 @@ export function useGeneration(): UseGenerationReturn {
         };
 
         push(
-          makeMsg("ai", "Done. States updated with your change.", {
+          makeMsg("ai", `Done. ${session.scenarios.length} scenarios updated.`, {
             type: "result",
-            stateNames: Object.keys(states),
+            stateNames: session.scenarios.map((s) => s.name),
           }),
         );
 

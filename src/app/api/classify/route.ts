@@ -31,11 +31,12 @@ export async function POST(req: NextRequest) {
       const artifact = findArtifact(screenName);
       return NextResponse.json({
         archetypes: artifact.archetypes,
+        scenarios: artifact.scenarios,
         layoutDescription: artifact.layoutDescription,
       });
     }
 
-    // Live path (USE_LIVE_AI=true).
+    // Live path (USE_LIVE_AI=true): AI derives scenarios from component props.
     const message = await getClient().messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 1024,

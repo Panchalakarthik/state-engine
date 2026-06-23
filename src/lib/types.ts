@@ -10,6 +10,11 @@ export interface LayoutDescription {
   components: LayoutComponent[];
 }
 
+export interface Scenario {
+  name: string;
+  description: string;
+}
+
 export interface StateOutput {
   jsx: string;
   description: string;
@@ -21,6 +26,7 @@ export interface Session {
   components: string[];
   archetypes: string[];
   layoutDescription: LayoutDescription;
+  scenarios: Scenario[];
   states: Record<string, StateOutput>;
   activeState: string;
   createdAt: number;

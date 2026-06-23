@@ -1,4 +1,4 @@
-import type { LayoutDescription, StateOutput } from "@/lib/types";
+import type { LayoutDescription, Scenario, StateOutput } from "@/lib/types";
 import salesDashboard from "./sales-dashboard.json";
 import loginPage from "./login-page.json";
 
@@ -7,6 +7,7 @@ export interface Artifact {
   matchKeys: string[];
   components: string[];
   archetypes: string[];
+  scenarios: Scenario[];
   layoutDescription: LayoutDescription;
   states: Record<string, StateOutput>;
 }

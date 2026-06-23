@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import type { StateOutput, ResponsiveMode } from "@/lib/types";
+import type { Scenario, StateOutput, ResponsiveMode } from "@/lib/types";
 import RightHeader from "./right-header";
 import Canvas from "./canvas";
 
 interface RightPanelProps {
+  scenarios: Scenario[];
   states: Record<string, StateOutput>;
   activeState: string;
   onStateChange: (state: string) => void;
@@ -13,6 +14,7 @@ interface RightPanelProps {
 }
 
 export default function RightPanel({
+  scenarios,
   states,
   activeState,
   onStateChange,
@@ -25,7 +27,7 @@ export default function RightPanel({
   return (
     <div className="flex min-w-0 flex-1 flex-col bg-[#0d0d0d]">
       <RightHeader
-        states={Object.keys(states)}
+        scenarios={scenarios}
         activeState={activeState}
         responsiveMode={responsiveMode}
         onResponsiveChange={setResponsiveMode}
