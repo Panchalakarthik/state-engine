@@ -178,31 +178,54 @@ You will be given a scenario name and description that tells you exactly what th
 If the screen is a dashboard, analytics screen, admin panel, or any data-display screen,
 you MUST use this exact two-column layout. No exceptions.
 
-The sidebar uses SideNav with isExpanded={true} (force always-expanded) + position="relative"
-so it stays in the flex flow. Icons are component references on SideNavLink, not JSX.
+The sidebar is a Box-based nav panel (240px wide) with icon + text nav items.
+Icons are rendered as inline JSX: <HomeIcon /> (they are React components in scope).
 
 function GeneratedComponent() {
   const [page, setPage] = useState("overview");
   return (
     <Box display="flex" minHeight="700px">
-      <SideNav position="relative" isExpanded={true}>
-        <SideNavBody>
-          <SideNavSection>
-            <SideNavLink as={RouterLink} href="#" icon={HomeIcon} title="Overview"
-              isActive={page === "overview"} onClick={() => setPage("overview")} />
-            <SideNavLink as={RouterLink} href="#" icon={WalletIcon} title="Payments"
-              isActive={page === "payments"} onClick={() => setPage("payments")} />
-            <SideNavLink as={RouterLink} href="#" icon={UsersIcon} title="Customers"
-              isActive={page === "customers"} onClick={() => setPage("customers")} />
-            <SideNavLink as={RouterLink} href="#" icon={LayoutIcon} title="Analytics"
-              isActive={page === "analytics"} onClick={() => setPage("analytics")} />
-          </SideNavSection>
-        </SideNavBody>
-        <SideNavFooter>
-          <SideNavLink as={RouterLink} href="#" icon={SettingsIcon} title="Settings"
-            isActive={page === "settings"} onClick={() => setPage("settings")} />
-        </SideNavFooter>
-      </SideNav>
+      <Box width="240px" flexShrink="0" backgroundColor="surface.background.gray.intense"
+           display="flex" flexDirection="column" paddingY="spacing.6" paddingX="spacing.4">
+        <Box paddingX="spacing.2" paddingBottom="spacing.6">
+          <Heading size="large">Razorpay</Heading>
+        </Box>
+        <Box display="flex" flexDirection="column" gap="spacing.1">
+          <Box display="flex" alignItems="center" gap="spacing.3" padding="spacing.3"
+               borderRadius="medium"
+               backgroundColor={page === "overview" ? "surface.background.gray.moderate" : "transparent"}
+               onClick={() => setPage("overview")}>
+            <HomeIcon />
+            <Text size="small" color="surface.text.gray.normal">Overview</Text>
+          </Box>
+          <Box display="flex" alignItems="center" gap="spacing.3" padding="spacing.3"
+               borderRadius="medium"
+               backgroundColor={page === "payments" ? "surface.background.gray.moderate" : "transparent"}
+               onClick={() => setPage("payments")}>
+            <WalletIcon />
+            <Text size="small" color="surface.text.gray.normal">Payments</Text>
+          </Box>
+          <Box display="flex" alignItems="center" gap="spacing.3" padding="spacing.3"
+               borderRadius="medium"
+               backgroundColor={page === "customers" ? "surface.background.gray.moderate" : "transparent"}
+               onClick={() => setPage("customers")}>
+            <UsersIcon />
+            <Text size="small" color="surface.text.gray.normal">Customers</Text>
+          </Box>
+          <Box display="flex" alignItems="center" gap="spacing.3" padding="spacing.3"
+               borderRadius="medium"
+               backgroundColor={page === "analytics" ? "surface.background.gray.moderate" : "transparent"}
+               onClick={() => setPage("analytics")}>
+            <LayoutIcon />
+            <Text size="small" color="surface.text.gray.normal">Analytics</Text>
+          </Box>
+        </Box>
+        <Box marginTop="auto" paddingTop="spacing.4"
+             display="flex" alignItems="center" gap="spacing.3" padding="spacing.3">
+          <SettingsIcon />
+          <Text size="small" color="surface.text.gray.muted">Settings</Text>
+        </Box>
+      </Box>
       <Box display="flex" flexDirection="column" flex="1">
         <TopNav>
           <TopNavBrand><Heading size="medium">Razorpay</Heading></TopNavBrand>
@@ -217,12 +240,11 @@ function GeneratedComponent() {
 }
 
 Dashboard sidebar rules (REQUIRED):
-- Use SideNav with position="relative" isExpanded={true} — NOT a Box simulation
-- SideNavLink requires: as={RouterLink} (always), icon={IconComponent} (not <Icon/>), title="..." isActive={bool} onClick={fn}
-- icon prop = component reference, NEVER JSX: icon={HomeIcon} NOT icon={<HomeIcon />}
-- SideNavSection children = SideNavLink directly, no wrapping Box or div
-- isActive tracks the active page using useState — switch page in onClick
-- NEVER import from react-router-dom — RouterLink is already in scope
+- 240px Box sidebar on the LEFT — do NOT use SideNav component (it collapses in the canvas)
+- Each nav item: Box display="flex" alignItems="center" gap="spacing.3" with onClick + backgroundColor active state
+- Icons rendered as inline JSX: <HomeIcon /> <WalletIcon /> etc. — NOT as icon={HomeIcon} prop here
+- TopNav in the RIGHT column for the header bar
+- marginTop="auto" on the footer nav item pushes it to the bottom of the sidebar
 
 SCENARIO RENDERING RULES:
 - "prototype" scenario: the FULLY INTERACTIVE working version. Every field must be editable by the user:
