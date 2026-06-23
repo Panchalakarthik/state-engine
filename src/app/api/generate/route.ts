@@ -38,6 +38,18 @@ function sanitizeJsx(jsx: string): string {
     "$1={() => $2}",
   );
 
+  // Fix SideNav missing isExpanded — force always-expanded in canvas (no hover available).
+  out = out.replace(
+    /(<SideNav\b)(?![^>]*\bisExpanded=)/g,
+    "$1 isExpanded={true}",
+  );
+
+  // Fix SideNav missing position — must be "relative" so it stays in flex flow, not fixed.
+  out = out.replace(
+    /(<SideNav\b)(?![^>]*\bposition=)/g,
+    '$1 position="relative"',
+  );
+
   // Fix SideNavLink missing `as` prop — Blade requires it (crashes without it).
   // AI sometimes omits it; inject as={RouterLink} when not present.
   out = out.replace(
