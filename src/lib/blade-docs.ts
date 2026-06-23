@@ -8,7 +8,8 @@ const ARCHETYPE_TO_PATTERN: Record<string, string> = {
   form: "FormGroup",
   list: "ListView",
   detail: "DetailedView",
-  "data-display": "Dashboard",
+  // "data-display" → Dashboard.md uses react-router multi-file patterns (harmful for canvas).
+  // The SideNav+TopNav layout is enforced instead via DASHBOARD LAYOUT PATTERN in BASE_RULES.
 };
 
 function readKb(type: "patterns" | "components", name: string): string {

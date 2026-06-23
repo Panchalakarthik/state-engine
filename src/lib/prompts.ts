@@ -96,46 +96,11 @@ Component usage hints:
 
 NEVER use any component not in the list above (no Table, Select, Dropdown, Modal, Tooltip, ProgressBar, OTPInput, etc.).
 NEVER import from react-router-dom — RouterLink stub is already in scope, no import needed.
+NEVER write import statements of any kind.
 For tabular data: build rows with Box (flexDirection="row") — max 4 data rows total.
 For multi-line text input: use <TextArea label="Bio" value={bio} onChange={({ value }) => setBio(value ?? '')} /> — NEVER use <Box as="textarea">.
 Box "as" prop only accepts: div, section, footer, header, main, aside, nav, span, label. Never "textarea", "input", "button", or any other value.
-
-DASHBOARD LAYOUT PATTERN — use this structure for data-display / dashboard screens:
-function GeneratedComponent() {
-  const [page, setPage] = useState("overview");
-  return (
-    <Box display="flex" height="100vh">
-      <SideNav position="relative">
-        <SideNavBody>
-          <SideNavSection>
-            <SideNavLink as={RouterLink} href="#" icon={HomeIcon} title="Overview"
-              isActive={page === "overview"} onClick={() => setPage("overview")} />
-            <SideNavLink as={RouterLink} href="#" icon={WalletIcon} title="Payments"
-              isActive={page === "payments"} onClick={() => setPage("payments")} />
-            <SideNavLink as={RouterLink} href="#" icon={UsersIcon} title="Customers"
-              isActive={page === "customers"} onClick={() => setPage("customers")} />
-          </SideNavSection>
-        </SideNavBody>
-        <SideNavFooter>
-          <SideNavLink as={RouterLink} href="#" icon={SettingsIcon} title="Settings" />
-        </SideNavFooter>
-      </SideNav>
-      <Box display="flex" flexDirection="column" flex="1" overflow="auto">
-        <TopNav>
-          <TopNavBrand><Heading size="medium">Razorpay</Heading></TopNavBrand>
-          <TopNavActions><Avatar name="Priya Sharma" /></TopNavActions>
-        </TopNav>
-        <Box padding="spacing.6" display="flex" flexDirection="column" gap="spacing.5">
-          {/* metric cards, charts, tables here */}
-        </Box>
-      </Box>
-    </Box>
-  );
-}
-- SideNavLink REQUIRES as={RouterLink} (always). Do NOT omit it.
-- Use icon={SomeIcon} on SideNavLink — icon is a component reference, NOT JSX: icon={HomeIcon} NOT icon={<HomeIcon/>}
-- SideNavSection children must be SideNavLink elements directly (no wrapping Box/div)
-- Icons: pass as component refs — icon={HomeIcon}, NOT <HomeIcon /> — when used as props
+Icons as props: pass as component reference, NOT JSX element — icon={HomeIcon} NOT icon={<HomeIcon />}
 
 DATA LIMITS — keep output short to avoid truncation:
 - Max 4 rows in any list or table
@@ -206,6 +171,50 @@ Output ONLY the GeneratedComponent function. No imports, no exports, no markdown
 
 export const SCENARIO_SYSTEM_PROMPT = `You generate a specific scenario of a UI screen using Razorpay Blade components.
 You will be given a scenario name and description that tells you exactly what the user sees.
+
+╔══════════════════════════════════════════════════════════════════╗
+║  DASHBOARD SCREENS — MANDATORY LAYOUT (data-display archetype)  ║
+╚══════════════════════════════════════════════════════════════════╝
+If the screen is a dashboard, admin panel, analytics screen, or any data-display screen,
+you MUST use SideNav + TopNav layout. No exceptions. The outer structure is ALWAYS:
+
+function GeneratedComponent() {
+  const [page, setPage] = useState("overview");
+  return (
+    <Box display="flex">
+      <SideNav position="relative">
+        <SideNavBody>
+          <SideNavSection>
+            <SideNavLink as={RouterLink} href="#" icon={HomeIcon} title="Overview"
+              isActive={page === "overview"} onClick={() => setPage("overview")} />
+            <SideNavLink as={RouterLink} href="#" icon={WalletIcon} title="Payments"
+              isActive={page === "payments"} onClick={() => setPage("payments")} />
+            <SideNavLink as={RouterLink} href="#" icon={UsersIcon} title="Customers"
+              isActive={page === "customers"} onClick={() => setPage("customers")} />
+          </SideNavSection>
+        </SideNavBody>
+        <SideNavFooter>
+          <SideNavLink as={RouterLink} href="#" icon={SettingsIcon} title="Settings" />
+        </SideNavFooter>
+      </SideNav>
+      <Box display="flex" flexDirection="column" flex="1">
+        <TopNav>
+          <TopNavBrand><Heading size="medium">Razorpay</Heading></TopNavBrand>
+          <TopNavActions><Avatar name="Priya Sharma" /></TopNavActions>
+        </TopNav>
+        <Box padding="spacing.6" display="flex" flexDirection="column" gap="spacing.5">
+          {/* metric cards, chart placeholders, transaction list etc. */}
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+SideNav rules (REQUIRED — violating these causes render errors):
+- SideNavLink ALWAYS needs as={RouterLink}. NEVER omit it.
+- icon prop = component reference: icon={HomeIcon} — NEVER icon={<HomeIcon />}
+- SideNavSection children = SideNavLink elements only (no Box or div wrapper)
+- NEVER import from react-router-dom — RouterLink is already in scope as a global
 
 SCENARIO RENDERING RULES:
 - "prototype" scenario: the FULLY INTERACTIVE working version. Every field must be editable by the user:
