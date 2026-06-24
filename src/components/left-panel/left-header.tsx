@@ -18,7 +18,7 @@ export default function LeftHeader({
       </span>
       <button
         onClick={onHistoryClick}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-[#555] transition-colors hover:bg-[#1e1e1e] hover:text-[#aaa]"
+        className="flex h-7 w-7 items-center justify-center rounded-md text-white transition-colors hover:bg-[#1e1e1e] hover:text-white"
         title="History"
       >
         <svg
@@ -37,7 +37,7 @@ export default function LeftHeader({
       </button>
       <button
         onClick={onNewSession}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-[#555] transition-colors hover:bg-[#1e1e1e] hover:text-[#aaa]"
+        className="flex h-7 w-7 items-center justify-center rounded-md text-white transition-colors hover:bg-[#1e1e1e] hover:text-white"
         title="New session"
       >
         <svg
