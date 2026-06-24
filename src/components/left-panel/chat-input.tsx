@@ -52,7 +52,7 @@ export default function ChatInput({
           placeholder={hasSession ? "Ask for a change" : "Name a screen…"}
           rows={2}
           disabled={disabled}
-          className="flex-1 resize-none border-none bg-transparent text-[16px] leading-relaxed text-[#ccc] outline-none placeholder:text-[#BBBAB0]"
+          className="flex-1 resize-none border-none bg-transparent text-[16px] leading-relaxed text-[#ccc] outline-none placeholder:text-[#4C4C4C]"
         />
         <div className="flex items-center justify-end">
           {isGenerating ? (
