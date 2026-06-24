@@ -14,9 +14,9 @@ interface UseSessionsReturn {
   activeSession: Session | null;
   activeSessionId: string | null;
   setActiveSessionId: (id: string | null) => void;
-  persistSession: (session: Session) => void;
-  removeSession: (id: string) => void;
-  setActiveState: (sessionId: string, stateName: string) => void;
+  persistSession: (session: Session) => Promise<void>;
+  removeSession: (id: string) => Promise<void>;
+  setActiveState: (sessionId: string, stateName: string) => Promise<void>;
   startNewSession: () => void;
 }
 
@@ -25,24 +25,21 @@ export function useSessions(): UseSessionsReturn {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   useEffect(() => {
-    const stored = getSessions();
-    setSessions(stored);
-    // Don't auto-activate last session — start with blank canvas.
-    // User can pick a session from History.
+    getSessions().then(setSessions);
   }, []);
 
   const activeSession =
     sessions.find((s) => s.id === activeSessionId) ?? null;
 
-  const persistSession = useCallback((session: Session) => {
-    const updated = saveSession(session);
+  const persistSession = useCallback(async (session: Session) => {
+    const updated = await saveSession(session);
     setSessions(updated);
     setActiveSessionId(session.id);
   }, []);
 
   const removeSession = useCallback(
-    (id: string) => {
-      const updated = deleteSession(id);
+    async (id: string) => {
+      const updated = await deleteSession(id);
       setSessions(updated);
       if (activeSessionId === id) {
         setActiveSessionId(updated[0]?.id ?? null);
@@ -51,8 +48,8 @@ export function useSessions(): UseSessionsReturn {
     [activeSessionId],
   );
 
-  const setActiveState = useCallback((sessionId: string, stateName: string) => {
-    const updated = updateSessionState(sessionId, stateName);
+  const setActiveState = useCallback(async (sessionId: string, stateName: string) => {
+    const updated = await updateSessionState(sessionId, stateName);
     setSessions(updated);
   }, []);
 
