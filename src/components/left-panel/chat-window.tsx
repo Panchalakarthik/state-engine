@@ -21,7 +21,7 @@ export default function ChatWindow({ messages, isStreaming, statesReadyCount, is
   if (messages.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center px-6 text-center">
-        <p className="text-sm leading-relaxed text-[#4C4C4C]">
+        <p className="text-sm leading-relaxed text-[#5F5F5F]">
           Name a screen (e.g. &ldquo;Sales Dashboard&rdquo;) and press Enter.<br />
           I&rsquo;ll classify it and derive every state.
         </p>
