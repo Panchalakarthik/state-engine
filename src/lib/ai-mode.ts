@@ -1,8 +1,7 @@
 /**
- * When USE_LIVE_AI is truthy, the API routes call the real Anthropic API.
- * Otherwise they serve bundled artifacts (the default — no API key needed).
+ * Live AI is active when ANTHROPIC_API_KEY is present.
+ * Falls back to bundled demo artifacts when the key is missing.
  */
 export function useLiveAI(): boolean {
-  const flag = process.env.USE_LIVE_AI?.toLowerCase();
-  return flag === "true" || flag === "1";
+  return !!process.env.ANTHROPIC_API_KEY;
 }
