@@ -18,6 +18,7 @@ export default function ChatInput({
   disabled,
 }: ChatInputProps) {
   const [value, setValue] = useState("");
+  const [focused, setFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function handleSend() {
@@ -36,12 +37,18 @@ export default function ChatInput({
 
   return (
     <div className="flex-shrink-0 border-t border-[#1e1e1e] px-3 pb-3 pt-2">
-      <div className="flex min-h-[120px] flex-col gap-5 rounded-[14px] border border-[#2a2a2a] bg-[#1a1a1a] px-3.5 pb-3 pt-4">
+      <div
+        className={`flex min-h-[120px] flex-col gap-5 rounded-[14px] border bg-[#1a1a1a] px-3.5 pb-3 pt-4 transition-colors duration-150 ${
+          focused ? "border-[#7c3aed]" : "border-[#2a2a2a]"
+        }`}
+      >
         <textarea
           ref={textareaRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           placeholder={hasSession ? "Ask for a change" : "Name a screen…"}
           rows={2}
           disabled={disabled}
