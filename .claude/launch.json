@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "state-engine",
-      "runtimeExecutable": "bun",
-      "runtimeArgs": ["dev"],
-      "port": 3001
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
+      "autoPort": false
     }
   ]
 }

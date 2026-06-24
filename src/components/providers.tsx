@@ -5,7 +5,7 @@ import { bladeTheme } from "@razorpay/blade/tokens";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <BladeProvider themeTokens={bladeTheme} colorScheme="dark">
+    <BladeProvider themeTokens={bladeTheme} colorScheme="light">
       {children}
     </BladeProvider>
   );

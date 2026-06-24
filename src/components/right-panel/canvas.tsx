@@ -124,8 +124,7 @@ export default function Canvas({ jsx, responsiveMode, isGenerating, onRenderErro
   }
 
   return (
-    <div className="relative flex flex-1 items-start justify-center overflow-auto bg-[#0d0d0d]">
-      <DotGrid />
+    <div className="relative flex flex-1 items-start justify-center overflow-auto bg-white">
       <div
         className="relative z-10 my-6 w-full px-6 transition-all"
         style={{ maxWidth: FRAME_WIDTH[responsiveMode] }}
