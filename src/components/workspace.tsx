@@ -25,6 +25,7 @@ const StateDataSchema = z.object({
 export default function Workspace() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [statesReadyCount, setStatesReadyCount] = useState(0);
+  const [isStopped, setIsStopped] = useState(false);
 
   const {
     sessions,
@@ -94,9 +95,15 @@ export default function Workspace() {
 
   const isGenerating = status === "submitted" || status === "streaming";
 
+  const handleAbort = useCallback(() => {
+    stop();
+    setIsStopped(true);
+  }, [stop]);
+
   const handleSend = useCallback(
     (value: string) => {
       setStatesReadyCount(0);
+      setIsStopped(false);
       // Clear streaming states for a new generation (but keep for same session refine)
       if (!activeSession) {
         streamingStatesRef.current.clear();
@@ -119,6 +126,7 @@ export default function Workspace() {
     startNewSession();
     setMessages([]);
     setStatesReadyCount(0);
+    setIsStopped(false);
     streamingStatesRef.current.clear();
   }, [startNewSession, setMessages, stop]);
 
@@ -159,10 +167,11 @@ export default function Workspace() {
         isGenerating={isGenerating}
         hasSession={Boolean(activeSession)}
         statesReadyCount={statesReadyCount}
+        isStopped={isStopped}
         onHistoryClick={() => setHistoryOpen((o) => !o)}
         onNewSession={handleNewSession}
         onSend={handleSend}
-        onAbort={stop}
+        onAbort={handleAbort}
       />
       <RightPanel
         scenarios={activeSession?.scenarios ?? []}

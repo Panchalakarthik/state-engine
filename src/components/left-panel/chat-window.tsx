@@ -8,9 +8,10 @@ interface ChatWindowProps {
   messages: AppUIMessage[];
   isStreaming: boolean;
   statesReadyCount: number;
+  isStopped: boolean;
 }
 
-export default function ChatWindow({ messages, isStreaming, statesReadyCount }: ChatWindowProps) {
+export default function ChatWindow({ messages, isStreaming, statesReadyCount, isStopped }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export default function ChatWindow({ messages, isStreaming, statesReadyCount }: 
           isLastAssistant={i === lastAssistantIdx}
           isStreaming={isStreaming}
           statesReadyCount={statesReadyCount}
+          isStopped={isStopped}
         />
       ))}
       <div ref={bottomRef} />

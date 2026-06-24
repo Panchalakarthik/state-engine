@@ -9,6 +9,7 @@ interface LeftPanelProps {
   isGenerating: boolean;
   hasSession: boolean;
   statesReadyCount: number;
+  isStopped: boolean;
   onHistoryClick: () => void;
   onNewSession: () => void;
   onSend: (value: string) => void;
@@ -21,6 +22,7 @@ export default function LeftPanel({
   isGenerating,
   hasSession,
   statesReadyCount,
+  isStopped,
   onHistoryClick,
   onNewSession,
   onSend,
@@ -37,6 +39,7 @@ export default function LeftPanel({
         messages={messages}
         isStreaming={isGenerating}
         statesReadyCount={statesReadyCount}
+        isStopped={isStopped}
       />
       <ChatInput
         isGenerating={isGenerating}

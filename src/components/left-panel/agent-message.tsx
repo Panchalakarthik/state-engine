@@ -198,7 +198,7 @@ function GenerateDone({ names }: { names: string[] }) {
   );
 }
 
-function GenerateStep({ part, statesReady }: { part: AnyPart; statesReady: number }) {
+function GenerateStep({ part, statesReady, isStopped }: { part: AnyPart; statesReady: number; isStopped: boolean }) {
   const isDone = part.state === "output-available";
   const isError = part.state === "output-error";
   const input = part.input as { scenarios?: { name: string }[]; instruction?: string } | undefined;
@@ -212,6 +212,29 @@ function GenerateStep({ part, statesReady }: { part: AnyPart; statesReady: numbe
 
   if (isDone && output) {
     return <GenerateDone names={output.stateNames ?? []} />;
+  }
+
+  if (isStopped) {
+    return (
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="#555">
+            <rect x="1" y="1" width="10" height="10" rx="1.5" />
+          </svg>
+          <span style={{ fontSize: 12, color: "#555" }}>
+            Stopped —{" "}
+            {statesReady > 0
+              ? `${statesReady} of ${total} scenario${total !== 1 ? "s" : ""} ready`
+              : "no scenarios ready yet"}
+          </span>
+        </div>
+        {statesReady > 0 && (
+          <p style={{ fontSize: 12, color: "#444", paddingLeft: 2, margin: 0 }}>
+            Switch scenarios using the dropdown above, or send a new message to regenerate.
+          </p>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -240,6 +263,7 @@ interface AgentMessageProps {
   isLastAssistant: boolean;
   isStreaming: boolean;
   statesReadyCount: number;
+  isStopped: boolean;
 }
 
 export default function AgentMessage({
@@ -247,6 +271,7 @@ export default function AgentMessage({
   isLastAssistant,
   isStreaming,
   statesReadyCount,
+  isStopped,
 }: AgentMessageProps) {
   if (message.role === "user") {
     const text = message.parts?.find((p) => p.type === "text")?.text ?? "";
@@ -279,7 +304,7 @@ export default function AgentMessage({
         }
 
         if (part.type === "tool-generate_states") {
-          return <GenerateStep key={i} part={part} statesReady={statesReadyCount} />;
+          return <GenerateStep key={i} part={part} statesReady={statesReadyCount} isStopped={isLastAssistant && isStopped} />;
         }
 
         if (part.type === "text" && part.text) {
