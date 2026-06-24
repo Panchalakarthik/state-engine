@@ -33,56 +33,60 @@ function TypewriterText({
   return <>{displayed}</>;
 }
 
-// ─── Reasoning (collapsible) ──────────────────────────────────────────────────
+// ─── Reasoning (collapsible, prompt-kit style) ────────────────────────────────
 
 function ReasoningBlock({ text, isStreaming }: { text: string; isStreaming: boolean }) {
   const [open, setOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!contentRef.current || !innerRef.current) return;
+    if (open) {
+      contentRef.current.style.maxHeight = `${innerRef.current.scrollHeight}px`;
+    } else {
+      contentRef.current.style.maxHeight = "0px";
+    }
+  }, [open, text]);
 
   return (
-    <div style={{ marginBottom: 6 }}>
+    <div style={{ marginBottom: 8 }}>
       <button
         onClick={() => setOpen((o) => !o)}
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 7,
-          background: "none",
-          border: "none",
-          padding: 0,
-          cursor: "pointer",
-          color: isStreaming ? "#888" : "#555",
-          transition: "color 0.15s",
+          display: "flex", alignItems: "center", gap: 6,
+          background: "none", border: "none", padding: 0,
+          cursor: "pointer", color: "#666",
         }}
       >
-        {isStreaming ? (
-          <span
-            className="pulse-dot"
-            style={{ width: 6, height: 6, borderRadius: "50%", background: "#7c3aed", display: "inline-block", flexShrink: 0 }}
-          />
-        ) : (
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        )}
-        <span style={{ fontSize: 12, fontWeight: 500 }}>Reasoning</span>
         <svg
-          width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-          style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }}
+          width="13" height="13" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease", flexShrink: 0 }}
         >
-          <polyline points="9 18 15 12 9 6" />
+          <polyline points="6 9 12 15 18 9" />
         </svg>
+        <span style={{ fontSize: 12, fontWeight: 500, color: "#666" }}>
+          {isStreaming && !open ? <span className="text-shimmer">Reasoning…</span> : "Reasoning"}
+        </span>
       </button>
 
-      <div style={{ overflow: "hidden", maxHeight: open ? 240 : 0, transition: "max-height 0.3s ease" }}>
-        <div style={{ borderRadius: 10, border: "1px solid #1e1e1e", background: "#141414", padding: "11px 14px", marginTop: 7 }}>
+      <div
+        ref={contentRef}
+        style={{ overflow: "hidden", maxHeight: 0, transition: "max-height 0.25s ease-out" }}
+      >
+        <div
+          ref={innerRef}
+          style={{ borderRadius: 8, border: "1px solid #2e2e2e", background: "#1a1a1a", padding: "10px 13px", marginTop: 6 }}
+        >
           {isStreaming ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              <div className="shimmer-bar" style={{ height: 10, width: "80%" }} />
-              <div className="shimmer-bar" style={{ height: 10, width: "58%" }} />
-              <div className="shimmer-bar" style={{ height: 10, width: "71%" }} />
+              <div className="shimmer-bar" style={{ height: 9, width: "82%" }} />
+              <div className="shimmer-bar" style={{ height: 9, width: "60%" }} />
+              <div className="shimmer-bar" style={{ height: 9, width: "74%" }} />
             </div>
           ) : (
-            <p style={{ fontSize: 11, color: "#555", lineHeight: 1.6, margin: 0 }}>{text}</p>
+            <p style={{ fontSize: 11, color: "#555", lineHeight: 1.65, margin: 0 }}>{text}</p>
           )}
         </div>
       </div>
@@ -136,14 +140,9 @@ function ClassifyStep({ part }: { part: AnyPart }) {
 
   return (
     <div style={{ marginBottom: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 9 }}>
-        <PulseDot />
-        <span style={{ fontSize: 12, color: "#777" }}>Classifying &ldquo;{screenName}&rdquo;&hellip;</span>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 7, paddingLeft: 2 }}>
-        <div className="shimmer-bar" style={{ height: 9, width: "72%" }} />
-        <div className="shimmer-bar" style={{ height: 9, width: "48%" }} />
-      </div>
+      <span className="text-shimmer" style={{ fontSize: 13, fontWeight: 500 }}>
+        Classifying &ldquo;{screenName}&rdquo;&hellip;
+      </span>
     </div>
   );
 }
