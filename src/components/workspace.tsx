@@ -8,6 +8,7 @@ import LeftPanel from "./left-panel";
 import RightPanel from "./right-panel";
 import HistoryPanel from "./history-panel";
 import { useSessions } from "@/hooks/use-sessions";
+import { useUsage } from "@/hooks/use-usage";
 import type { AppUIMessage, StateData } from "@/lib/ai-types";
 import type { Session } from "@/lib/types";
 
@@ -36,6 +37,8 @@ export default function Workspace() {
     setActiveState,
     startNewSession,
   } = useSessions();
+
+  const { usage, incrementUsage } = useUsage();
 
   // Track the active session in a ref so the transport body closure is always current
   const activeSessionRef = useRef<Session | null>(null);
@@ -101,16 +104,19 @@ export default function Workspace() {
   }, [stop]);
 
   const handleSend = useCallback(
-    (value: string) => {
+    async (value: string) => {
+      if (usage.limitReached || usage.loading) return;
+      const allowed = await incrementUsage();
+      if (!allowed) return;
+
       setStatesReadyCount(0);
       setIsStopped(false);
-      // Clear streaming states for a new generation (but keep for same session refine)
       if (!activeSession) {
         streamingStatesRef.current.clear();
       }
       sendMessage({ text: value });
     },
-    [activeSession, sendMessage],
+    [activeSession, sendMessage, usage, incrementUsage],
   );
 
   const handleStateChange = useCallback(
@@ -168,6 +174,8 @@ export default function Workspace() {
         hasSession={Boolean(activeSession)}
         statesReadyCount={statesReadyCount}
         isStopped={isStopped}
+        limitReached={usage.limitReached}
+        usageLoading={usage.loading}
         onHistoryClick={() => setHistoryOpen((o) => !o)}
         onNewSession={handleNewSession}
         onSend={handleSend}

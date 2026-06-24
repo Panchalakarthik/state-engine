@@ -22,7 +22,7 @@ export default function ChatWindow({ messages, isStreaming, statesReadyCount, is
     return (
       <div className="flex flex-1 items-center justify-center px-6 text-center">
         <p className="text-sm leading-relaxed text-[#5F5F5F]">
-          Name a screen (e.g. &ldquo;Sales Dashboard&rdquo;) and press Enter. I&rsquo;ll classify it and derive every state.
+          Name a complex screen (e.g., &ldquo;Checkout Page&rdquo;) and press Enter. I&rsquo;ll classify it &amp; derive every state.
         </p>
       </div>
     );

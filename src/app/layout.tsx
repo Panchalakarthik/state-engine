@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ClerkProvider } from "@clerk/nextjs";
 import StyledComponentsRegistry from "./styled-registry";
 import Providers from "@/components/providers";
 
@@ -16,9 +17,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning>
-        <StyledComponentsRegistry>
-          <Providers>{children}</Providers>
-        </StyledComponentsRegistry>
+        <ClerkProvider>
+          <StyledComponentsRegistry>
+            <Providers>{children}</Providers>
+          </StyledComponentsRegistry>
+        </ClerkProvider>
       </body>
     </html>
   );

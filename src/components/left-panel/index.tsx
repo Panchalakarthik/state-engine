@@ -10,6 +10,8 @@ interface LeftPanelProps {
   hasSession: boolean;
   statesReadyCount: number;
   isStopped: boolean;
+  limitReached: boolean;
+  usageLoading: boolean;
   onHistoryClick: () => void;
   onNewSession: () => void;
   onSend: (value: string) => void;
@@ -23,6 +25,8 @@ export default function LeftPanel({
   hasSession,
   statesReadyCount,
   isStopped,
+  limitReached,
+  usageLoading,
   onHistoryClick,
   onNewSession,
   onSend,
@@ -41,12 +45,22 @@ export default function LeftPanel({
         statesReadyCount={statesReadyCount}
         isStopped={isStopped}
       />
-      <ChatInput
-        isGenerating={isGenerating}
-        hasSession={hasSession}
-        onSend={onSend}
-        onAbort={onAbort}
-      />
+      {limitReached ? (
+        <div className="flex-shrink-0 bg-[#262626] px-3 pb-3 pt-2">
+          <div className="flex min-h-[120px] flex-col items-center justify-center gap-1 rounded-[14px] border border-[#3C3C3C]">
+            <p className="text-sm font-medium text-[#ccc]">Question limit reached</p>
+            <p className="text-xs text-[#5F5F5F]">You've used all 3 questions.</p>
+          </div>
+        </div>
+      ) : (
+        <ChatInput
+          isGenerating={isGenerating}
+          hasSession={hasSession}
+          onSend={onSend}
+          onAbort={onAbort}
+          disabled={usageLoading}
+        />
+      )}
     </div>
   );
 }
