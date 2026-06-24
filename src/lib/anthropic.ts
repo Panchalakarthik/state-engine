@@ -1,5 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { createAnthropic } from "@ai-sdk/anthropic";
 
-// Module-level singleton — initialized once per process, reused across all requests.
-// Avoids re-reading env vars and re-initializing the HTTP client on every API call.
-export const anthropic = new Anthropic();
+const provider = createAnthropic();
+
+export const haikuModel = provider("claude-haiku-4-5-20251001");
+export const sonnetModel = provider("claude-sonnet-4-6");

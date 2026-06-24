@@ -1,17 +1,31 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
+import { z } from "zod";
 import LeftPanel from "./left-panel";
 import RightPanel from "./right-panel";
 import HistoryPanel from "./history-panel";
-import { useGeneration } from "@/hooks/use-generation";
 import { useSessions } from "@/hooks/use-sessions";
+import type { AppUIMessage, StateData } from "@/lib/ai-types";
+import type { Session } from "@/lib/types";
 
-const DEFAULT_COMPONENTS: string[] = [];
+// Zod schema mirroring StateData — needed for dataPartSchemas
+const StateDataSchema = z.object({
+  sessionId: z.string(),
+  screenName: z.string(),
+  archetypes: z.array(z.string()),
+  scenarios: z.array(z.object({ name: z.string(), description: z.string() })),
+  name: z.string(),
+  jsx: z.string(),
+  description: z.string(),
+});
 
 export default function Workspace() {
   const [historyOpen, setHistoryOpen] = useState(false);
-  const { messages, isGenerating, generate, refine, abort, clearMessages } = useGeneration();
+  const [statesReadyCount, setStatesReadyCount] = useState(0);
+
   const {
     sessions,
     activeSession,
@@ -22,15 +36,74 @@ export default function Workspace() {
     startNewSession,
   } = useSessions();
 
-  const handleSend = useCallback(
-    async (value: string) => {
-      if (activeSession) {
-        await refine(activeSession, value, (updated) => persistSession(updated));
-      } else {
-        await generate(value, DEFAULT_COMPONENTS, (session) => persistSession(session));
-      }
+  // Track the active session in a ref so the transport body closure is always current
+  const activeSessionRef = useRef<Session | null>(null);
+  activeSessionRef.current = activeSession;
+
+  // Track accumulated states per session ID during streaming (bypasses stale closures)
+  const streamingStatesRef = useRef<Map<string, Record<string, { jsx: string; description: string }>>>(new Map());
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport<AppUIMessage>({
+        api: "/api/chat",
+        body: () => {
+          const s = activeSessionRef.current;
+          const protoName = s?.scenarios[0]?.name ?? "prototype";
+          return {
+            currentPrototypeJsx: s?.states[protoName]?.jsx ?? null,
+            activeSessionId: s?.id ?? null,
+          };
+        },
+      }),
+    [],
+  );
+
+  const { messages, sendMessage, status, stop, setMessages } = useChat<AppUIMessage>({
+    transport,
+    dataPartSchemas: { state: StateDataSchema },
+    onData: (dataPart) => {
+      if (dataPart.type !== "data-state") return;
+      const data = dataPart.data as StateData;
+
+      // Accumulate states for this session
+      const bucket = streamingStatesRef.current.get(data.sessionId) ?? {};
+      bucket[data.name] = { jsx: data.jsx, description: data.description };
+      streamingStatesRef.current.set(data.sessionId, bucket);
+
+      // Build session and persist
+      const existingSession = sessions.find((s) => s.id === data.sessionId);
+
+      const session: Session = {
+        id: data.sessionId,
+        screenName: data.screenName,
+        archetypes: data.archetypes,
+        scenarios: data.scenarios,
+        layoutDescription: { screenName: data.screenName, components: [] },
+        states: { ...(existingSession?.states ?? {}), ...bucket },
+        activeState: existingSession?.activeState ?? data.scenarios[0]?.name ?? "prototype",
+        components: [],
+        createdAt: existingSession?.createdAt ?? Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      persistSession(session);
+      setStatesReadyCount((n) => n + 1);
     },
-    [activeSession, generate, refine, persistSession],
+  });
+
+  const isGenerating = status === "submitted" || status === "streaming";
+
+  const handleSend = useCallback(
+    (value: string) => {
+      setStatesReadyCount(0);
+      // Clear streaming states for a new generation (but keep for same session refine)
+      if (!activeSession) {
+        streamingStatesRef.current.clear();
+      }
+      sendMessage({ text: value });
+    },
+    [activeSession, sendMessage],
   );
 
   const handleStateChange = useCallback(
@@ -42,9 +115,27 @@ export default function Workspace() {
   );
 
   const handleNewSession = useCallback(() => {
+    stop();
     startNewSession();
-    clearMessages();
-  }, [startNewSession, clearMessages]);
+    setMessages([]);
+    setStatesReadyCount(0);
+    streamingStatesRef.current.clear();
+  }, [startNewSession, setMessages, stop]);
+
+  const handleStateFixed = useCallback(
+    (scenarioName: string, jsx: string) => {
+      if (!activeSession) return;
+      persistSession({
+        ...activeSession,
+        states: {
+          ...activeSession.states,
+          [scenarioName]: { jsx, description: activeSession.states[scenarioName]?.description ?? scenarioName },
+        },
+        updatedAt: Date.now(),
+      });
+    },
+    [activeSession, persistSession],
+  );
 
   const handleExport = useCallback(() => {
     if (!activeSession) return;
@@ -67,10 +158,11 @@ export default function Workspace() {
         messages={messages}
         isGenerating={isGenerating}
         hasSession={Boolean(activeSession)}
+        statesReadyCount={statesReadyCount}
         onHistoryClick={() => setHistoryOpen((o) => !o)}
         onNewSession={handleNewSession}
         onSend={handleSend}
-        onAbort={abort}
+        onAbort={stop}
       />
       <RightPanel
         scenarios={activeSession?.scenarios ?? []}
@@ -79,6 +171,7 @@ export default function Workspace() {
         isGenerating={isGenerating}
         onStateChange={handleStateChange}
         onExport={handleExport}
+        onStateFixed={handleStateFixed}
       />
       <HistoryPanel
         open={historyOpen}
@@ -86,7 +179,8 @@ export default function Workspace() {
         activeSessionId={activeSessionId}
         onSelect={(id) => {
           setActiveSessionId(id);
-          clearMessages();
+          setMessages([]);
+          setStatesReadyCount(0);
         }}
         onClose={() => setHistoryOpen(false)}
       />

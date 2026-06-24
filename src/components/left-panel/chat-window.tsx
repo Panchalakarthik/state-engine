@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { ChatMessage } from "@/lib/types";
-import ChatMessageItem from "./chat-message";
+import type { AppUIMessage } from "@/lib/ai-types";
+import AgentMessage from "./agent-message";
 
 interface ChatWindowProps {
-  messages: ChatMessage[];
+  messages: AppUIMessage[];
+  isStreaming: boolean;
+  statesReadyCount: number;
 }
 
-export default function ChatWindow({ messages }: ChatWindowProps) {
+export default function ChatWindow({ messages, isStreaming, statesReadyCount }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,10 +29,21 @@ export default function ChatWindow({ messages }: ChatWindowProps) {
     );
   }
 
+  const lastAssistantIdx = messages.reduce(
+    (acc, m, i) => (m.role === "assistant" ? i : acc),
+    -1,
+  );
+
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-[18px] pb-3 pt-5">
-      {messages.map((msg) => (
-        <ChatMessageItem key={msg.id} message={msg} />
+      {messages.map((msg, i) => (
+        <AgentMessage
+          key={msg.id}
+          message={msg}
+          isLastAssistant={i === lastAssistantIdx}
+          isStreaming={isStreaming}
+          statesReadyCount={statesReadyCount}
+        />
       ))}
       <div ref={bottomRef} />
     </div>

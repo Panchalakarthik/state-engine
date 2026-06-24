@@ -67,6 +67,7 @@ export default function StateDropdown({
       </button>
       {open && (
         <div className="absolute left-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] shadow-xl">
+          <div className="max-h-[320px] overflow-y-auto">
           {scenarios.map((scenario) => (
             <button
               key={scenario.name}
@@ -86,6 +87,7 @@ export default function StateDropdown({
               </div>
             </button>
           ))}
+          </div>
         </div>
       )}
     </div>

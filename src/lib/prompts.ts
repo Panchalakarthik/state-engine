@@ -106,17 +106,21 @@ Rules for deriving scenarios:
 4. Form screens: derive from button states (empty→disabled, submitting→loading) and input validation states (error)
 5. Data screens: derive from Badge/Alert color ranges (healthy=positive, declining=negative, empty, error)
 6. Give each scenario a short slug name (kebab-case) and a one-line description of what the user sees
-7. Return exactly 4–5 scenarios total (prototype + 3–4 others). Never return more than 5. Avoid redundant ones.
+7. Return as many scenarios as the screen warrants — cover every distinct state a user can encounter. Avoid redundant ones, but never artificially limit the count.
 
-Output ONLY valid JSON. No markdown fences, no explanation. Format:
+Output ONLY valid JSON. No markdown fences, no explanation. Format (this example is a dashboard — cover ALL realistic states, 7–10+ scenarios is normal for complex screens):
 {
   "archetypes": ["data-display"],
   "scenarios": [
+    { "name": "prototype", "description": "Dashboard loaded with realistic data, all metrics visible, revenue up" },
     { "name": "loading", "description": "All content is skeleton shimmer, page is fetching data" },
-    { "name": "healthy", "description": "All metrics positive, Badge color=positive, revenue up" },
-    { "name": "declining", "description": "Revenue and transactions down, Badge color=negative" },
-    { "name": "empty", "description": "No data yet, empty state with onboarding CTA" },
-    { "name": "error", "description": "API failed, Alert color=negative, retry button visible" }
+    { "name": "healthy", "description": "All metrics positive, Badge color=positive, revenue trend up" },
+    { "name": "declining", "description": "Revenue and transactions down, Badge color=negative, alert visible" },
+    { "name": "empty", "description": "No data yet, EmptyState with onboarding CTA, no metric cards" },
+    { "name": "error", "description": "API failed, Alert color=negative at top, retry button, rest is Skeleton" },
+    { "name": "partial-error", "description": "Some metrics loaded, one card shows error state, rest normal" },
+    { "name": "date-range-empty", "description": "Selected date range has no transactions, EmptyState in table section" },
+    { "name": "high-volume", "description": "Exceptionally high transaction volume, all metrics at peak, notice alert" }
   ],
   "layoutDescription": {
     "screenName": "string",
@@ -160,17 +164,33 @@ React hooks: useState, useEffect, useRef, useCallback, useMemo
 
 Component usage hints:
 - Amount: <Amount value={1234.56} currency="INR" /> — always use for INR monetary values
-- Badge: <Badge color="positive">+12%</Badge> — color: positive | negative | neutral | notice
+- Badge: <Badge color="positive">+12%</Badge> — ALWAYS provide text as children. NEVER self-close: <Badge /> crashes. color: positive | negative | neutral | notice
 - Tag: <Tag>Pending</Tag> — for status chips / labels
 - Spinner: <Spinner accessibilityLabel="Loading" /> — inline loading indicator
 - Counter: <Counter value={42} /> — numeric counter display
 - Avatar: <Avatar name="Priya Sharma" /> — initials avatar
 - EmptyState: <EmptyState title="No payments yet" description="Your transactions will appear here"><Button>Get started</Button></EmptyState>
 - Switch: <Switch /> — toggle
-- List/ListItem: ONLY <ListItemText> is valid inside <ListItem> — NEVER use <Text>, <Box>, or anything else:
+- List/ListItem: USE ONLY for simple single-line text bullet lists. For any row with 2+ data points
+  (name + amount, item + status, label + value), use Box rows instead — NOT List.
+  Box row pattern for multi-column data:
+  <Box display="flex" flexDirection="column" gap="spacing.3">
+    {transactions.map((t) => (
+      <Box key={t.id} display="flex" justifyContent="space-between" alignItems="center">
+        <Text size="small">{t.name}</Text>
+        <Amount value={t.amount} currency="INR" />
+      </Box>
+    ))}
+  </Box>
+  When using List, follow the strict three rules:
+  1. ONLY <ListItem> directly in <List> — never map to <ListItemText> or <Box>
+  2. ONLY <ListItemText> directly in <ListItem> — never <Box>, <Text>, or any other element
+  3. <ListItemText> accepts ONLY a plain string — NEVER <Amount>, <Badge>, <Heading>, or any JSX inside it
+  Correct List usage (simple text only):
   <List>
-    <ListItem><ListItemText>Payment received · ₹1,200</ListItemText></ListItem>
-    <ListItem><ListItemText>Refund issued · ₹340</ListItemText></ListItem>
+    {items.map((item) => (
+      <ListItem key={item.id}><ListItemText>{item.label}</ListItemText></ListItem>
+    ))}
   </List>
 
 NEVER use any component not in the list above (no Table, Select, Dropdown, Modal, Tooltip, ProgressBar, OTPInput, etc.).
@@ -185,12 +205,28 @@ DATA LIMITS — keep output short to avoid truncation:
 - Max 4 rows in any list or table
 - Max 3 metric cards in a dashboard
 - No more than 2 chart placeholders per screen
+- Keep total JSX output under 200 lines — use placeholder Boxes instead of deeply nested content if you are running long
 
 FORBIDDEN — these cause parse errors and are banned:
 - NEVER use template literals. Use only regular quoted strings: "hello " + name, never backtick strings.
 - NEVER use the style prop. Use only Blade component props for layout and sizing.
 - NEVER use SVG elements (svg, path, polyline, circle, rect, line, g, defs, linearGradient, etc.).
 - NEVER render charts by mapping data to Box elements with computed heights.
+- NEVER call useState() without an initial value when the state is used as an array — always useState([]) not useState(). Calling .map()/.filter()/.find() on undefined crashes at runtime.
+- NEVER put <Box>, <Text>, or any non-ListItem element directly inside <List> — ONLY <ListItem> is valid. Putting anything else crashes with a Blade runtime error.
+- NEVER put <Box>, <Text>, <Badge>, or any Blade component directly inside <ListItem> — ONLY <ListItemText>, <ListItemCode>, <ListItemLink>, or a plain string. Anything else crashes.
+- NEVER put JSX elements (<Amount />, <Badge />, <Skeleton />, etc.) inside <ListItemText> — it renders as <p> and block-level children (Skeleton renders as <div>) cause a hydration crash. Only plain strings allowed.
+- NEVER wrap <Amount />, <Skeleton />, <Counter />, or <Spinner /> inside <Text> — Text also renders as <p>, causing the same div-in-p hydration crash. Use <Amount /> as a direct child of <Box>, never inside <Text>.
+- NEVER put <Skeleton> inside <ListItemText>. In loading scenarios, replace the ENTIRE <List>...</List> block with shimmer text rows:
+  <Box display="flex" flexDirection="column" gap="spacing.3">
+    <Skeleton width="90%" height="16px" borderRadius="small" />
+    <Skeleton width="75%" height="16px" borderRadius="small" />
+    <Skeleton width="85%" height="16px" borderRadius="small" />
+  </Box>
+- NEVER map directly to <ListItemText> inside <List> — always map to <ListItem> first: {items.map(i => <ListItem key={i.id}><ListItemText>{i.label}</ListItemText></ListItem>)}
+- NEVER write two adjacent JSX elements in a .map() return, ternary branch, or && expression without a wrapper. WRONG: {items.map(i => <A/><B/>)}. RIGHT: {items.map(i => <><A/><B/></>)} or restructure to return one element.
+- NEVER use Collapsible, Dropdown, AvatarGroup, or BottomNav — they require child component types not available in scope.
+- NEVER self-close <Badge /> — it crashes. Always: <Badge color="positive">text</Badge>
 
 CHARTS — represent any chart (line, bar, area, pie) as a single Box placeholder:
   <Box backgroundColor="surface.background.gray.intense" borderRadius="medium" width="100%" height="160px" display="flex" alignItems="center" justifyContent="center">
@@ -349,6 +385,13 @@ SCENARIO RENDERING RULES:
     • Dashboards: fully loaded with realistic sample data, all Badges showing real values, chart placeholder visible.
     This is the main screen — make it feel like a real working product, not a static mockup.
 - "loading" scenario: replace ALL data content with Blade Skeleton shimmer. Every text value, number, badge → Skeleton. Preserve layout structure exactly.
+  For any <List> block: replace the whole thing with shimmer text rows (varying widths give realistic shimmer-text effect):
+  <Box display="flex" flexDirection="column" gap="spacing.3">
+    <Skeleton width="90%" height="16px" borderRadius="small" />
+    <Skeleton width="75%" height="16px" borderRadius="small" />
+    <Skeleton width="85%" height="16px" borderRadius="small" />
+    <Skeleton width="80%" height="16px" borderRadius="small" />
+  </Box>
 - "error" scenario: Alert color="negative" at top with clear title+description, a retry Button, rest of content as Skeleton.
 - "empty" scenario: use EmptyState with a headline and primary Button CTA. No data rows or metric cards.
 - "healthy" / "positive" / "success" scenarios: show real data with Badge color="positive", green-leaning values, upward trends.

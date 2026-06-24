@@ -1,13 +1,14 @@
-import type { ChatMessage } from "@/lib/types";
+import type { AppUIMessage } from "@/lib/ai-types";
 import LeftHeader from "./left-header";
 import ChatWindow from "./chat-window";
 import ChatInput from "./chat-input";
 
 interface LeftPanelProps {
   screenName: string | null;
-  messages: ChatMessage[];
+  messages: AppUIMessage[];
   isGenerating: boolean;
   hasSession: boolean;
+  statesReadyCount: number;
   onHistoryClick: () => void;
   onNewSession: () => void;
   onSend: (value: string) => void;
@@ -19,6 +20,7 @@ export default function LeftPanel({
   messages,
   isGenerating,
   hasSession,
+  statesReadyCount,
   onHistoryClick,
   onNewSession,
   onSend,
@@ -31,7 +33,11 @@ export default function LeftPanel({
         onHistoryClick={onHistoryClick}
         onNewSession={onNewSession}
       />
-      <ChatWindow messages={messages} />
+      <ChatWindow
+        messages={messages}
+        isStreaming={isGenerating}
+        statesReadyCount={statesReadyCount}
+      />
       <ChatInput
         isGenerating={isGenerating}
         hasSession={hasSession}

@@ -15,6 +15,8 @@ interface CanvasProps {
   jsx: string | null;
   responsiveMode: ResponsiveMode;
   isGenerating?: boolean;
+  onRenderError?: (error: string) => void;
+  externalError?: string | null;
 }
 
 const FRAME_WIDTH: Record<ResponsiveMode, string> = {
@@ -25,7 +27,7 @@ const FRAME_WIDTH: Record<ResponsiveMode, string> = {
 
 /** Catches render-time errors thrown by generated Blade components. */
 class RenderBoundary extends Component<
-  { children: ReactNode; onError: (msg: string) => void },
+  { children: ReactNode; onError: (msg: string) => void; jsx: string },
   { hasError: boolean }
 > {
   state = { hasError: false };
@@ -33,6 +35,8 @@ class RenderBoundary extends Component<
     return { hasError: true };
   }
   componentDidCatch(error: Error) {
+    console.error("Canvas render error:", error.message);
+    console.error("Failing JSX:\n", this.props.jsx);
     this.props.onError(error.message);
   }
   render() {
@@ -41,9 +45,17 @@ class RenderBoundary extends Component<
   }
 }
 
-export default function Canvas({ jsx, responsiveMode, isGenerating }: CanvasProps) {
+export default function Canvas({ jsx, responsiveMode, isGenerating, onRenderError, externalError }: CanvasProps) {
   const [Comp, setComp] = useState<ComponentType | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const handleError = (msg: string) => {
+    if (onRenderError) {
+      onRenderError(msg);
+    } else {
+      setError(msg);
+    }
+  };
 
   useEffect(() => {
     if (!jsx) {
@@ -62,12 +74,14 @@ export default function Canvas({ jsx, responsiveMode, isGenerating }: CanvasProp
       .catch((err) => {
         if (cancelled) return;
         console.error("Canvas compile error:", err);
-        setError(err?.message ?? "Failed to compile component");
+        console.error("Failing JSX:\n", jsx);
+        handleError(err?.message ?? "Failed to compile component");
       });
 
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jsx]);
 
   // Show loading only when the specific active state hasn't arrived yet.
@@ -96,13 +110,14 @@ export default function Canvas({ jsx, responsiveMode, isGenerating }: CanvasProp
     );
   }
 
-  if (error) {
+  const displayError = externalError ?? error;
+  if (displayError) {
     return (
       <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#0d0d0d]">
         <DotGrid />
         <div className="relative z-10 max-w-md text-center">
           <p className="mb-2 text-sm text-[#f87171]">Render error</p>
-          <pre className="whitespace-pre-wrap text-xs text-[#555]">{error}</pre>
+          <pre className="whitespace-pre-wrap text-xs text-[#555]">{displayError}</pre>
         </div>
       </div>
     );
@@ -116,7 +131,7 @@ export default function Canvas({ jsx, responsiveMode, isGenerating }: CanvasProp
         style={{ maxWidth: FRAME_WIDTH[responsiveMode] }}
       >
         {Comp && (
-          <RenderBoundary key={jsx} onError={setError}>
+          <RenderBoundary key={jsx} onError={handleError} jsx={jsx ?? ""}>
             <Comp />
           </RenderBoundary>
         )}
