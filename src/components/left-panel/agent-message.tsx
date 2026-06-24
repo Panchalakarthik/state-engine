@@ -238,19 +238,10 @@ function GenerateStep({ part, statesReady, isStopped }: { part: AnyPart; statesR
 
   return (
     <div style={{ marginBottom: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 9 }}>
-        <PulseDot />
-        <span style={{ fontSize: 12, color: "#777" }}>
-          {isRefine ? "Applying change" : "Generating Blade JSX"}&hellip;{" "}
-          {statesReady > 0 && <span style={{ color: "#555" }}>{statesReady}/{total} ready</span>}
-        </span>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 7, paddingLeft: 2 }}>
-        <div className="shimmer-bar" style={{ height: 9, width: "85%" }} />
-        <div className="shimmer-bar" style={{ height: 9, width: "62%" }} />
-        <div className="shimmer-bar" style={{ height: 9, width: "78%" }} />
-        <div className="shimmer-bar" style={{ height: 9, width: "54%" }} />
-      </div>
+      <span className="text-shimmer" style={{ fontSize: 13, fontWeight: 500 }}>
+        {isRefine ? "Applying change" : "Generating Blade JSX"}&hellip;{" "}
+        {statesReady > 0 && `${statesReady}/${total} ready`}
+      </span>
     </div>
   );
 }
