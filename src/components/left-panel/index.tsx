@@ -29,7 +29,7 @@ export default function LeftPanel({
   onAbort,
 }: LeftPanelProps) {
   return (
-    <div className="flex w-[360px] flex-shrink-0 flex-col overflow-hidden border-r border-[#222] bg-[#262626]">
+    <div className="flex w-[360px] flex-shrink-0 flex-col overflow-hidden border-r border-[#3C3C3C] bg-[#262626]">
       <LeftHeader
         screenName={screenName}
         onHistoryClick={onHistoryClick}

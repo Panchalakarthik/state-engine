@@ -12,7 +12,7 @@ export default function LeftHeader({
   onNewSession,
 }: LeftHeaderProps) {
   return (
-    <div className="flex h-[46px] flex-shrink-0 items-center gap-2 border-b border-[#1e1e1e] px-4">
+    <div className="flex h-[46px] flex-shrink-0 items-center gap-2 border-b border-[#3C3C3C] px-4">
       <span className="flex-1 truncate text-sm font-medium text-[#f0f0f0]">
         {screenName ?? "State Engine"}
       </span>

@@ -95,23 +95,23 @@ export default function RightHeader({
   }
 
   return (
-    <div className="flex h-[46px] flex-shrink-0 items-center gap-2 border-b border-[#1a1a1a] bg-[#111] px-3.5">
+    <div className="flex h-[46px] flex-shrink-0 items-center gap-2 border-b border-[#3C3C3C] bg-[#262626] px-3.5">
       <div className="flex flex-1 items-center gap-2">
         <StateDropdown
           scenarios={scenarios}
           activeState={activeState}
           onChange={onStateChange}
         />
-        <div className="flex items-center overflow-hidden rounded-[7px] border border-[#2a2a2a] bg-[#1a1a1a]">
+        <div className="flex items-center overflow-hidden rounded-[7px] border border-[#3C3C3C] bg-[#262626]">
           {responsiveModes.map(({ mode, label, icon }) => (
             <button
               key={mode}
               onClick={() => onResponsiveChange(mode)}
               title={label}
-              className={`flex h-[30px] w-8 items-center justify-center border-r border-[#2a2a2a] transition-colors last:border-r-0 ${
+              className={`flex h-[30px] w-8 items-center justify-center border-r border-[#3C3C3C] transition-colors last:border-r-0 ${
                 responsiveMode === mode
                   ? "bg-[#1e1e2e] text-[#818cf8]"
-                  : "text-[#555] hover:bg-[#222] hover:text-[#bbb]"
+                  : "text-[#555] hover:bg-[#2e2e2e] hover:text-[#bbb]"
               }`}
             >
               {icon}
@@ -123,7 +123,7 @@ export default function RightHeader({
       <div className="flex items-center gap-1.5">
         <button
           title="Coming soon"
-          className="flex cursor-not-allowed items-center gap-1.5 rounded-[7px] border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-[5px] text-[12px] text-[#666]"
+          className="flex cursor-not-allowed items-center gap-1.5 rounded-[7px] border border-[#3C3C3C] bg-[#262626] px-3 py-[5px] text-[12px] text-[#666]"
         >
           <FigmaIcon />
           Copy to Figma
@@ -131,7 +131,7 @@ export default function RightHeader({
         <button
           onClick={handleExport}
           disabled={scenarios.length === 0}
-          className="flex items-center gap-1.5 rounded-[7px] border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-[5px] text-[12px] text-[#bbb] transition-colors hover:bg-[#202020] disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex items-center gap-1.5 rounded-[7px] border border-[#3C3C3C] bg-[#262626] px-3 py-[5px] text-[12px] text-[#bbb] transition-colors hover:bg-[#2e2e2e] disabled:cursor-not-allowed disabled:opacity-40"
         >
           <svg
             width="12"
