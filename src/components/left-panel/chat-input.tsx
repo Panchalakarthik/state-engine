@@ -36,9 +36,9 @@ export default function ChatInput({
   }
 
   return (
-    <div className="flex-shrink-0 border-t border-[#1e1e1e] px-3 pb-3 pt-2">
+    <div className="flex-shrink-0 bg-[#262626] px-3 pb-3 pt-2">
       <div
-        className={`flex min-h-[120px] flex-col gap-5 rounded-[14px] border bg-[#1a1a1a] px-3.5 pb-3 pt-4 transition-colors duration-150 ${
+        className={`flex min-h-[120px] flex-col gap-5 rounded-[14px] border bg-[#262626] px-3.5 pb-3 pt-4 transition-colors duration-150 ${
           focused ? "border-[#7c3aed]" : "border-[#2a2a2a]"
         }`}
       >
