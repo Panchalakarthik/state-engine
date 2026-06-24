@@ -54,17 +54,14 @@ export default function ChatInput({
           disabled={disabled}
           className="flex-1 resize-none border-none bg-transparent text-[16px] leading-relaxed text-[#ccc] outline-none placeholder:text-[#BBBAB0]"
         />
-        <div className="flex items-center justify-between">
-          <button className="text-[20px] leading-none text-[#555] transition-colors hover:text-[#aaa]">
-            +
-          </button>
+        <div className="flex items-center justify-end">
           {isGenerating ? (
             <button
               onClick={onAbort}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#7c3aed] transition-colors hover:bg-[#6d28d9]"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-[#7c3aed] transition-colors hover:bg-[#6d28d9]"
               title="Stop generation"
             >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="white">
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="white">
                 <rect x="1" y="1" width="10" height="10" rx="1.5" />
               </svg>
             </button>
@@ -72,16 +69,16 @@ export default function ChatInput({
             <button
               onClick={handleSend}
               disabled={!value.trim() || disabled}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#7c3aed] transition-colors hover:bg-[#6d28d9] disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-[#7c3aed] transition-colors hover:bg-[#6d28d9] disabled:cursor-not-allowed disabled:opacity-40"
               title="Send"
             >
               <svg
-                width="14"
-                height="14"
+                width="18"
+                height="18"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="white"
-                strokeWidth="2.2"
+                strokeWidth="2.5"
                 strokeLinecap="round"
               >
                 <line x1="12" y1="19" x2="12" y2="5" />
