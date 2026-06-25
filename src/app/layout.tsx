@@ -7,6 +7,11 @@ import Providers from "@/components/providers";
 export const metadata: Metadata = {
   title: "State Engine",
   description: "Derive every UI state from one screen",
+  openGraph: {
+    title: "State Engine",
+    description: "Derive every UI state from one screen",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

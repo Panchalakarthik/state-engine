@@ -1,5 +1,11 @@
 import { SignIn } from "@clerk/nextjs";
 import { Inter } from "next/font/google";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Sign in — State Engine",
+  description: "Sign in to access State Engine and derive every UI state from one screen.",
+};
 
 const inter = Inter({ subsets: ["latin"] });
 
