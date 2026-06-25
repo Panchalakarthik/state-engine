@@ -23,6 +23,7 @@
     "@razorpay/i18nify-react": "^4.0.12",
     "ai": "^6.0.209",
     "dayjs": "^1.11.21",
+    "docx": "^9.7.1",
     "framer-motion": "^12.40.0",
     "mysql2": "^3.22.5",
     "next": "16.2.9",
