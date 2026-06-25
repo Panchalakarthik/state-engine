@@ -1,6 +1,6 @@
-import { SignIn } from "@clerk/nextjs";
-import { Inter } from "next/font/google";
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import dynamic from "next/dynamic";
 
 export const metadata: Metadata = {
   title: "Sign in — State Engine",
@@ -8,6 +8,11 @@ export const metadata: Metadata = {
 };
 
 const inter = Inter({ subsets: ["latin"] });
+
+const SignIn = dynamic(
+  () => import("@clerk/nextjs").then((m) => ({ default: m.SignIn })),
+  { ssr: false, loading: () => null }
+);
 
 export default function Page() {
   return (
