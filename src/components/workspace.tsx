@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { z } from "zod";
@@ -47,6 +47,14 @@ export default function Workspace() {
   // Track accumulated states per session ID during streaming (bypasses stale closures)
   const streamingStatesRef = useRef<Map<string, Record<string, { jsx: string; description: string }>>>(new Map());
 
+  // Track messages and sessions in refs so effects/callbacks always read latest values
+  const messagesRef = useRef<AppUIMessage[]>([]);
+  const sessionsRef = useRef<Session[]>(sessions);
+  sessionsRef.current = sessions;
+
+  // Track which session ID the current/last generation belongs to
+  const generationSessionIdRef = useRef<string | null>(null);
+
   const transport = useMemo(
     () =>
       new DefaultChatTransport<AppUIMessage>({
@@ -70,13 +78,15 @@ export default function Workspace() {
       if (dataPart.type !== "data-state") return;
       const data = dataPart.data as StateData;
 
+      generationSessionIdRef.current = data.sessionId;
+
       // Accumulate states for this session
       const bucket = streamingStatesRef.current.get(data.sessionId) ?? {};
       bucket[data.name] = { jsx: data.jsx, description: data.description };
       streamingStatesRef.current.set(data.sessionId, bucket);
 
       // Build session and persist
-      const existingSession = sessions.find((s) => s.id === data.sessionId);
+      const existingSession = sessionsRef.current.find((s) => s.id === data.sessionId);
 
       const session: Session = {
         id: data.sessionId,
@@ -95,6 +105,28 @@ export default function Workspace() {
       setStatesReadyCount((n) => n + 1);
     },
   });
+
+  // Keep messages ref in sync on every render
+  messagesRef.current = messages;
+
+  // After streaming completes, save the full chat history to the session
+  const prevStatusRef = useRef(status);
+  useEffect(() => {
+    if (prevStatusRef.current === "streaming" && status === "ready") {
+      const sessionId = generationSessionIdRef.current;
+      if (sessionId) {
+        const session = sessionsRef.current.find((s) => s.id === sessionId);
+        if (session) {
+          persistSession({
+            ...session,
+            messages: messagesRef.current as unknown[],
+            updatedAt: Date.now(),
+          });
+        }
+      }
+    }
+    prevStatusRef.current = status;
+  }, [status, persistSession]);
 
   const isGenerating = status === "submitted" || status === "streaming";
 
@@ -134,6 +166,7 @@ export default function Workspace() {
     setStatesReadyCount(0);
     setIsStopped(false);
     streamingStatesRef.current.clear();
+    generationSessionIdRef.current = null;
   }, [startNewSession, setMessages, stop]);
 
   const handleStateFixed = useCallback(
@@ -195,8 +228,9 @@ export default function Workspace() {
         sessions={sessions}
         activeSessionId={activeSessionId}
         onSelect={(id) => {
+          const session = sessionsRef.current.find((s) => s.id === id);
           setActiveSessionId(id);
-          setMessages([]);
+          setMessages((session?.messages as AppUIMessage[]) ?? []);
           setStatesReadyCount(0);
         }}
         onClose={() => setHistoryOpen(false)}

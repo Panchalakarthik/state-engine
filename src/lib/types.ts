@@ -29,6 +29,7 @@ export interface Session {
   scenarios: Scenario[];
   states: Record<string, StateOutput>;
   activeState: string;
+  messages?: unknown[];
   createdAt: number;
   updatedAt: number;
 }

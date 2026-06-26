@@ -13,6 +13,7 @@ function rowToSession(row: RowDataPacket): Session {
     scenarios: typeof row.scenarios === "string" ? JSON.parse(row.scenarios) : row.scenarios,
     states: typeof row.states === "string" ? JSON.parse(row.states) : row.states,
     activeState: row.active_state,
+    messages: row.messages ? (typeof row.messages === "string" ? JSON.parse(row.messages) : row.messages) : [],
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
   };

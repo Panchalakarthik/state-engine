@@ -14,11 +14,13 @@ async function ensureTable() {
       scenarios JSON NOT NULL,
       states JSON NOT NULL,
       active_state VARCHAR(255) NOT NULL,
+      messages JSON,
       created_at BIGINT NOT NULL,
       updated_at BIGINT NOT NULL,
       PRIMARY KEY (id)
     )
   `);
+  await pool.execute(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS messages JSON`).catch(() => {});
 }
 
 function rowToSession(row: RowDataPacket): Session {
@@ -31,6 +33,7 @@ function rowToSession(row: RowDataPacket): Session {
     scenarios: typeof row.scenarios === "string" ? JSON.parse(row.scenarios) : row.scenarios,
     states: typeof row.states === "string" ? JSON.parse(row.states) : row.states,
     activeState: row.active_state,
+    messages: row.messages ? (typeof row.messages === "string" ? JSON.parse(row.messages) : row.messages) : [],
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
   };
@@ -55,8 +58,8 @@ export async function POST(req: Request) {
     const session: Session = await req.json();
     await pool.execute(
       `INSERT INTO sessions
-        (id, screen_name, components, archetypes, layout_description, scenarios, states, active_state, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, screen_name, components, archetypes, layout_description, scenarios, states, active_state, messages, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
         screen_name = VALUES(screen_name),
         components = VALUES(components),
@@ -65,6 +68,7 @@ export async function POST(req: Request) {
         scenarios = VALUES(scenarios),
         states = VALUES(states),
         active_state = VALUES(active_state),
+        messages = VALUES(messages),
         updated_at = VALUES(updated_at)`,
       [
         session.id,
@@ -75,6 +79,7 @@ export async function POST(req: Request) {
         JSON.stringify(session.scenarios),
         JSON.stringify(session.states),
         session.activeState,
+        JSON.stringify(session.messages ?? []),
         session.createdAt,
         session.updatedAt,
       ]
