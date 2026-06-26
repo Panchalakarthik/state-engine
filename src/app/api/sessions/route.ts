@@ -20,7 +20,10 @@ async function ensureTable() {
       PRIMARY KEY (id)
     )
   `);
-  await pool.execute(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS messages JSON`).catch(() => {});
+  // Migrate existing tables: errno 1060 = "Duplicate column name" (column already exists — safe to ignore)
+  await pool.execute(`ALTER TABLE sessions ADD COLUMN messages JSON`).catch((err: unknown) => {
+    if ((err as { errno?: number })?.errno !== 1060) console.warn("sessions migration:", (err as Error)?.message);
+  });
 }
 
 function rowToSession(row: RowDataPacket): Session {
