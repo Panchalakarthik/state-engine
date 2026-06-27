@@ -14,6 +14,8 @@ import {
   ADAPT_SCENARIO_PROMPT,
   TRANSLATE_RECIPE_PROMPT,
   REFINE_PROMPT,
+  buildImageContextInject,
+  type ImageContext,
 } from "./prompts";
 import type { LayoutDescription, Scenario, StateOutput } from "./types";
 
@@ -221,18 +223,21 @@ export async function generatePrototype(
   userInstruction: string | undefined,
   archetypes: string[],
   signal?: AbortSignal,
+  imageContext?: ImageContext,
 ): Promise<StateOutput> {
   const bladeDocs = getBladeDocs(archetypes);
   const system = bladeDocs
     ? `${SCENARIO_SYSTEM_PROMPT}\n\n---\n\n## BLADE REFERENCE DOCS\n\n${bladeDocs}`
     : SCENARIO_SYSTEM_PROMPT;
 
+  const imageBlock = imageContext ? buildImageContextInject(imageContext) : "";
+
   const userContent = `Layout description:
 ${JSON.stringify(layoutDescription, null, 2)}
 
 Scenario: "prototype"
 What the user sees: ${scenario.description}
-${userInstruction ? `\nAdditional instruction: ${userInstruction}` : ""}
+${userInstruction ? `\nAdditional instruction: ${userInstruction}` : ""}${imageBlock}
 
 Generate the prototype scenario. Output ONLY the GeneratedComponent function.`;
 
@@ -244,12 +249,15 @@ export async function adaptScenario(
   prototypeJsx: string,
   scenario: Scenario,
   signal?: AbortSignal,
+  imageContext?: ImageContext,
 ): Promise<StateOutput> {
+  const imageBlock = imageContext ? buildImageContextInject(imageContext) : "";
+
   const userContent = `TEMPLATE JSX (prototype — do not change structure):
 ${prototypeJsx}
 
 Scenario to adapt: "${scenario.name}"
-What the user sees: ${scenario.description}
+What the user sees: ${scenario.description}${imageBlock}
 
 Adapt the template for this scenario. Output ONLY the GeneratedComponent function.`;
 
