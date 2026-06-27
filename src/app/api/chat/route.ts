@@ -147,7 +147,7 @@ export async function POST(req: Request) {
   const hasImage =
     latestMsg?.role === "user" &&
     (latestMsg.parts ?? []).some(
-      (p: unknown) => (p as { type: string }).type === "file",
+      (p: unknown) => typeof p === "object" && p !== null && (p as { type: string }).type === "file",
     );
 
   const model = hasImage ? sonnetModel : haikuModel;
@@ -160,15 +160,19 @@ export async function POST(req: Request) {
         system: systemPrompt,
         messages: await convertToModelMessages(messages),
         tools: {
-          analyze_image: {
-            description:
-              "Analyze the Figma frame image in the conversation. Examine the image carefully and fill in every field in the schema based on what you see. Do not skip optional fields if they are visible.",
-            inputSchema: ImageContextSchema,
-            execute: async (imageContext) => {
-              // Model fills schema by examining the image — just return the extracted data
-              return imageContext;
-            },
-          },
+          ...(hasImage
+            ? {
+                analyze_image: {
+                  description:
+                    "Analyze the Figma frame image in the conversation. Examine the image carefully and fill in every field in the schema based on what you see. Do not skip optional fields if they are visible.",
+                  inputSchema: ImageContextSchema,
+                  execute: async (imageContext: z.infer<typeof ImageContextSchema>) => {
+                    // Model fills schema by examining the image — just return the extracted data
+                    return imageContext;
+                  },
+                },
+              }
+            : {}),
           classify_screen: {
             description: "Classify a screen name into design archetypes and UI scenarios",
             inputSchema: z.object({
@@ -272,6 +276,7 @@ export async function POST(req: Request) {
                   protoJsx = generated.jsx;
                 } catch (err) {
                   if ((err as Error).name === "AbortError") throw err;
+                  if (!imageContext) throw err; // only retry when imageContext is the plausible cause
                   // Graceful degradation: if imageContext caused generation to fail, retry without it
                   console.warn("[chat] generatePrototype with imageContext failed, retrying without:", err);
                   const fallback = await generatePrototype(
