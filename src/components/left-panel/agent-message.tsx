@@ -267,8 +267,8 @@ export default function AgentMessage({
     const textPart = message.parts?.find((p: AnyPart) => p.type === "text");
     const fileParts = (message.parts ?? []).filter(
       (p: AnyPart) => p.type === "file",
-    ) as Array<{ type: "file"; url?: string; mediaType?: string }>;
-    const text = (textPart as { text?: string } | undefined)?.text ?? "";
+    ) as Array<{ type: "file"; url: string; mediaType?: string }>;
+    const text = textPart?.text ?? "";
 
     return (
       <div className="mb-5 flex flex-col items-end gap-2">
