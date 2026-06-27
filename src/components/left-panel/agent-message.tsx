@@ -264,9 +264,9 @@ export default function AgentMessage({
   isStopped,
 }: AgentMessageProps) {
   if (message.role === "user") {
-    const textPart = message.parts?.find((p: AnyPart) => p.type === "text");
+    const textPart = message.parts?.find((p) => p.type === "text") as AnyPart | undefined;
     const fileParts = (message.parts ?? []).filter(
-      (p: AnyPart) => p.type === "file",
+      (p) => p.type === "file",
     ) as Array<{ type: "file"; url: string; mediaType?: string }>;
     const text = textPart?.text ?? "";
 
