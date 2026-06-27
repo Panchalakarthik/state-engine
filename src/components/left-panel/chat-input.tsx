@@ -11,7 +11,7 @@ interface ChatInputProps {
 }
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
-const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 
 export default function ChatInput({
   isGenerating,
@@ -25,20 +25,22 @@ export default function ChatInput({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function attachImage(file: File) {
-    if (!ACCEPTED_TYPES.includes(file.type)) return;
-    if (file.size > MAX_IMAGE_BYTES) {
-      alert("Image must be under 5 MB");
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
-    setImageFile(file);
-    setImagePreviewUrl(url);
-  }
+  const attachImage = useCallback(
+    (file: File) => {
+      if (!(ACCEPTED_TYPES as readonly string[]).includes(file.type)) return;
+      if (file.size > MAX_IMAGE_BYTES) {
+        alert("Image must be under 5 MB");
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+      setImageFile(file);
+      setImagePreviewUrl(url);
+    },
+    [imagePreviewUrl],
+  );
 
   function clearImage() {
     if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
@@ -73,8 +75,7 @@ export default function ChatInput({
         attachImage(file);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [imagePreviewUrl],
+    [attachImage],
   );
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -114,7 +115,6 @@ export default function ChatInput({
         )}
 
         <textarea
-          ref={textareaRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
