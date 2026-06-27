@@ -95,14 +95,72 @@ New tool added to the chat agent. Runs first when an image is detected in the co
   badges: Array<{ label: string; color: string }>;
   alerts: Array<{ type: string; message?: string }>;
   colorMood: string;            // e.g. "light, neutral gray sections, green accent"
-  layout: string;               // e.g. "single-column with card sections"
+  layout: {
+    type: "single-column" | "sidebar-content" | "split-screen" | "card-grid" | "header-tabs";
+    sidebar?: {
+      position: "left" | "right";
+      navItems: string[];         // e.g. ["Overview", "Payments", "Customers"]
+    };
+    header?: {
+      type: "topnav" | "simple-heading";
+      hasAvatar: boolean;
+      hasSearch: boolean;
+    };
+    sections: Array<{
+      heading?: string;           // exact section heading text
+      containerType: "card" | "plain";
+      columns: 1 | 2 | 3;
+      contentType: "form-fields" | "metric-cards" | "data-rows" | "list-items";
+    }>;
+  };
+  assets: Array<{
+    type: "logo" | "photo" | "avatar" | "icon" | "illustration";
+    label: string;                // e.g. "Razorpay logo", "user profile photo"
+    position: string;             // e.g. "top-left header", "card thumbnail"
+    bladeFallback: string;        // e.g. "Heading with brand name", "Avatar", "gray Box placeholder"
+  }>;
   statusIndicators: string[];   // e.g. ["Pending Review badge", "Application Status alert"]
 }
 ```
 
 ---
 
-## Section 3: Validation Derivation
+## Section 3: Layout Analysis
+
+Each `layout.type` maps to a specific Blade code pattern the generator already knows:
+
+| `layout.type` | Blade pattern |
+|---|---|
+| `single-column` | `Box flexDirection="column"` + `Card` per section |
+| `sidebar-content` | 240px `Box` sidebar + main content area (already in prompts) |
+| `split-screen` | `Box flexDirection="row"` — two equal halves |
+| `card-grid` | `Box flexWrap="wrap"` + `Card` components |
+| `header-tabs` | `TopNav` + `TabNav` + content area |
+
+The `analyze_image` prompt constrains layout output to these five types only. Claude Vision is asked to: identify containment (what's inside what), detect the primary layout pattern, list section headings top-to-bottom, and identify column count per section. It is NOT asked to measure pixel spacing or reproduce CSS.
+
+**Complex/unsupported patterns** (modals, overlapping layers, absolute positioning) are mapped to the nearest available pattern — e.g., a modal becomes an inline `Alert` or `Card`.
+
+---
+
+## Section 4: Asset Handling
+
+When the image contains visual assets that have no direct Blade equivalent:
+
+| Asset type | Blade fallback |
+|---|---|
+| Company logo | `<Heading>` with brand name text, or `Box` with primary `backgroundColor` |
+| User / profile photo | `<Avatar name="User Name" />` |
+| Product / content photo | Gray `<Box>` placeholder with centered label text |
+| Illustration / hero image | Gray `<Box>` placeholder with description text |
+| Custom icons | Mapped to nearest Blade icon (HomeIcon, WalletIcon, SettingsIcon, etc.) |
+| Background image | `backgroundColor` Blade token matching color mood |
+
+The `assets` array in `analyze_image` output tells the generator exactly what fallback to use at each position.
+
+---
+
+## Section 5: Validation Derivation  
 
 The `analyze_image` tool extracts field types and the classify step derives validation scenarios accordingly:
 
