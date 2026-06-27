@@ -14,7 +14,7 @@ interface LeftPanelProps {
   usageLoading: boolean;
   onHistoryClick: () => void;
   onNewSession: () => void;
-  onSend: (value: string) => void;
+  onSend: (value: string, imageFile?: File) => void;
   onAbort: () => void;
 }
 
