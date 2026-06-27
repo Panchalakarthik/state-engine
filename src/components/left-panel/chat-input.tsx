@@ -67,7 +67,7 @@ export default function ChatInput({
   const handlePaste = useCallback(
     (e: ClipboardEvent<HTMLTextAreaElement>) => {
       const items = Array.from(e.clipboardData.items);
-      const imageItem = items.find((item) => item.type.startsWith("image/"));
+      const imageItem = items.find((item) => (ACCEPTED_TYPES as readonly string[]).includes(item.type));
       if (!imageItem) return;
       const file = imageItem.getAsFile();
       if (file) {

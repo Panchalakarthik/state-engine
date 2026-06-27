@@ -19,6 +19,7 @@ import { findRecipe } from "@/lib/blade-recipes";
 import type { AppUIMessage, StateData } from "@/lib/ai-types";
 import type { Scenario } from "@/lib/types";
 import type { ImageContext } from "@/lib/prompts";
+import { ANALYZE_IMAGE_PROMPT } from "@/lib/prompts";
 
 const AGENT_SYSTEM_TEXT = `You are a UI state engine for Razorpay's Blade design system.
 
@@ -163,8 +164,7 @@ export async function POST(req: Request) {
           ...(hasImage
             ? {
                 analyze_image: {
-                  description:
-                    "Analyze the Figma frame image in the conversation. Examine the image carefully and fill in every field in the schema based on what you see. Do not skip optional fields if they are visible.",
+                  description: ANALYZE_IMAGE_PROMPT,
                   inputSchema: ImageContextSchema,
                   execute: async (imageContext: z.infer<typeof ImageContextSchema>) => {
                     // Model fills schema by examining the image — just return the extracted data
