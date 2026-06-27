@@ -264,13 +264,35 @@ export default function AgentMessage({
   isStopped,
 }: AgentMessageProps) {
   if (message.role === "user") {
-    const text = message.parts?.find((p) => p.type === "text")?.text ?? "";
+    const textPart = message.parts?.find((p: AnyPart) => p.type === "text");
+    const fileParts = (message.parts ?? []).filter(
+      (p: AnyPart) => p.type === "file",
+    ) as Array<{ type: "file"; url?: string; mediaType?: string }>;
+    const text = (textPart as { text?: string } | undefined)?.text ?? "";
+
     return (
-      <div className="mb-5 flex items-start justify-end gap-2.5">
-        <span className="pt-1 text-right text-[15px] leading-snug text-[#f0f0f0]">{text}</span>
-        <div className="mt-0.5 flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full bg-[#16a34a] text-[13px] font-bold text-white">
-          K
-        </div>
+      <div className="mb-5 flex flex-col items-end gap-2">
+        {fileParts.map((fp, idx) =>
+          fp.url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={idx}
+              src={fp.url}
+              alt="Attached Figma frame"
+              className="max-h-[180px] max-w-[240px] rounded-lg border border-[#3C3C3C] object-contain"
+            />
+          ) : null,
+        )}
+        {text && (
+          <div className="flex items-start justify-end gap-2.5">
+            <span className="pt-1 text-right text-[15px] leading-snug text-[#f0f0f0]">
+              {text}
+            </span>
+            <div className="mt-0.5 flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full bg-[#16a34a] text-[13px] font-bold text-white">
+              K
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -295,6 +317,39 @@ export default function AgentMessage({
 
         if (part.type === "tool-generate_states") {
           return <GenerateStep key={i} part={part} statesReady={statesReadyCount} isStopped={isLastAssistant && isStopped} />;
+        }
+
+        if (part.type === "tool-analyze_image") {
+          const isDone = part.state === "output-available";
+          const isError = part.state === "output-error";
+          if (isError) {
+            return (
+              <p key={i} style={{ fontSize: 13, color: "#f87171", margin: "5px 0 8px" }}>
+                Image analysis failed.
+              </p>
+            );
+          }
+          if (isDone) {
+            const output = part.output as { screenName?: string; heading?: string } | undefined;
+            return (
+              <p
+                key={i}
+                style={{ fontSize: 13, color: "#666", lineHeight: 1.5, margin: "5px 0 8px", paddingLeft: 2 }}
+              >
+                <TypewriterText
+                  text={`Analyzed "${output?.screenName ?? "screen"}" — ${output?.heading ?? "details extracted"}.`}
+                  speed={10}
+                />
+              </p>
+            );
+          }
+          return (
+            <div key={i} style={{ marginBottom: 10 }}>
+              <span className="text-shimmer" style={{ fontSize: 13, fontWeight: 500 }}>
+                Analyzing image…
+              </span>
+            </div>
+          );
         }
 
         if (part.type === "text" && part.text) {
