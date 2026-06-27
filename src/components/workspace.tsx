@@ -148,19 +148,23 @@ export default function Workspace() {
       }
 
       if (imageFile) {
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(imageFile);
-        });
+        try {
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(imageFile);
+          });
 
-        sendMessage({
-          parts: [
-            { type: "file", mediaType: imageFile.type, url: dataUrl },
-            { type: "text", text: value },
-          ],
-        } as Parameters<typeof sendMessage>[0]);
+          sendMessage({
+            parts: [
+              { type: "file", mediaType: imageFile.type, url: dataUrl },
+              { type: "text", text: value },
+            ],
+          } as Parameters<typeof sendMessage>[0]);
+        } catch {
+          console.error("[handleSend] FileReader failed — image could not be read");
+        }
       } else {
         sendMessage({ text: value });
       }
@@ -215,14 +219,16 @@ export default function Workspace() {
       "TopNav","TopNavBrand","TopNavContent","TopNavActions","TabNav","TabNavItem","TabNavItems",
     ];
     const usedComponents = allBladeComponents.filter((c) =>
-      new RegExp(`<${c}[\\s/>]`).test(jsx),
+      new RegExp(String.raw`<${c}[\s/>]`).test(jsx),
     );
     const usedHooks = ["useState","useEffect","useRef","useCallback","useMemo"].filter((h) =>
       jsx.includes(`${h}(`),
     );
 
     const componentName = activeSession.screenName
+      .replace(/[^a-zA-Z0-9\s]/g, " ")
       .split(/\s+/)
+      .filter(Boolean)
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join("");
 
@@ -233,8 +239,8 @@ export default function Workspace() {
         : []),
     ].join("\n");
 
-    const namedJsx = jsx.replace(
-      /^function GeneratedComponent\(\)/,
+    const namedJsx = jsx.trimStart().replace(
+      /function GeneratedComponent\(\)/,
       `export function ${componentName}()`,
     );
 
