@@ -136,7 +136,7 @@ export default function Workspace() {
   }, [stop]);
 
   const handleSend = useCallback(
-    async (value: string) => {
+    async (value: string, imageFile?: File) => {
       if (usage.limitReached || usage.loading) return;
       const allowed = await incrementUsage();
       if (!allowed) return;
@@ -146,7 +146,24 @@ export default function Workspace() {
       if (!activeSession) {
         streamingStatesRef.current.clear();
       }
-      sendMessage({ text: value });
+
+      if (imageFile) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
+        });
+
+        sendMessage({
+          parts: [
+            { type: "file", mediaType: imageFile.type, url: dataUrl },
+            { type: "text", text: value },
+          ],
+        } as Parameters<typeof sendMessage>[0]);
+      } else {
+        sendMessage({ text: value });
+      }
     },
     [activeSession, sendMessage, usage, incrementUsage],
   );
@@ -187,9 +204,45 @@ export default function Workspace() {
   const handleExport = useCallback(() => {
     if (!activeSession) return;
     const jsx = activeSession.states[activeSession.activeState]?.jsx ?? "";
+    if (!jsx) return;
+
+    const allBladeComponents = [
+      "Box","Card","CardBody","Divider","Text","Heading",
+      "TextInput","TextArea","PasswordInput","Checkbox","Switch",
+      "Button","Link","Alert","Badge","Tag","Skeleton","Spinner",
+      "Amount","Counter","List","ListItem","ListItemText","EmptyState",
+      "Avatar","SideNav","SideNavBody","SideNavSection","SideNavLink","SideNavFooter","SideNavLevel",
+      "TopNav","TopNavBrand","TopNavContent","TopNavActions","TabNav","TabNavItem","TabNavItems",
+    ];
+    const usedComponents = allBladeComponents.filter((c) =>
+      new RegExp(`<${c}[\\s/>]`).test(jsx),
+    );
+    const usedHooks = ["useState","useEffect","useRef","useCallback","useMemo"].filter((h) =>
+      jsx.includes(`${h}(`),
+    );
+
+    const componentName = activeSession.screenName
+      .split(/\s+/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join("");
+
+    const imports = [
+      `import React${usedHooks.length > 0 ? `, { ${usedHooks.join(", ")} }` : ""} from "react";`,
+      ...(usedComponents.length > 0
+        ? [`import { ${usedComponents.join(", ")} } from "@razorpay/blade/components";`]
+        : []),
+    ].join("\n");
+
+    const namedJsx = jsx.replace(
+      /^function GeneratedComponent\(\)/,
+      `export function ${componentName}()`,
+    );
+
+    const output = `${imports}\n\n${namedJsx}\n`;
+
     const screenName = activeSession.screenName.replace(/\s+/g, "-").toLowerCase();
     const filename = `${screenName}-${activeSession.activeState}.tsx`;
-    const blob = new Blob([jsx], { type: "text/plain" });
+    const blob = new Blob([output], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
