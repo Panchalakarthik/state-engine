@@ -415,3 +415,109 @@ Every scenario is the SAME screen in a different state. The JSX structure must b
 - NEVER rename headings, labels, or buttons between scenarios
 
 ${BASE_RULES}`;
+
+export const ANALYZE_IMAGE_PROMPT = `You are a UI analysis assistant. The user has shared a Figma frame image.
+Examine it carefully and fill in every field in the tool schema.
+
+EXTRACTION RULES:
+- screenName: infer from the page title or dominant heading (e.g. "KYC Page", "Payments Dashboard")
+- heading: exact text of the largest/primary heading visible
+- subheading: exact text of the subtitle below the heading, if present
+- sections: list of section headings top-to-bottom (e.g. "Personal Information", "Government ID")
+- fields: for EVERY input field visible, record exact label, infer type from label + format hint, mark required if asterisk or "required" text is near it
+- buttons: every button visible — exact label text, primary/secondary/tertiary by visual prominence
+- badges: any badge/chip/tag visible with its exact text and color
+- alerts: any alert/banner component visible
+- colorMood: 1-2 sentence description of the overall palette (e.g. "light, neutral gray card sections, green success accent")
+- layout: classify into EXACTLY one of the five supported types, then describe sections
+- assets: every logo, photo, illustration, avatar, or custom icon visible — describe and give the Blade fallback
+
+If a value is not visible, omit that optional field rather than guessing.`;
+
+export interface ImageContext {
+  screenName: string;
+  heading: string;
+  subheading?: string;
+  sections: string[];
+  fields: Array<{
+    label: string;
+    type: "text" | "email" | "password" | "phone" | "date" | "number" | "textarea";
+    format?: string;
+    required: boolean;
+  }>;
+  buttons: Array<{ label: string; variant: "primary" | "secondary" | "tertiary" }>;
+  badges: Array<{ label: string; color: string }>;
+  alerts: Array<{ type: string; message?: string }>;
+  colorMood: string;
+  layout: {
+    type: "single-column" | "sidebar-content" | "split-screen" | "card-grid" | "header-tabs";
+    sidebar?: {
+      position: "left" | "right";
+      navItems: string[];
+    };
+    header?: {
+      type: "topnav" | "simple-heading";
+      hasAvatar: boolean;
+      hasSearch: boolean;
+    };
+    sections: Array<{
+      heading?: string;
+      containerType: "card" | "plain";
+      columns: 1 | 2 | 3;
+      contentType: "form-fields" | "metric-cards" | "data-rows" | "list-items";
+    }>;
+  };
+  assets: Array<{
+    type: "logo" | "photo" | "avatar" | "icon" | "illustration";
+    label: string;
+    position: string;
+    bladeFallback: string;
+  }>;
+  statusIndicators: string[];
+}
+
+export function buildImageContextInject(ctx: ImageContext): string {
+  const fieldLines = ctx.fields.map(
+    (f) =>
+      `  { label: "${f.label}", type: "${f.type}"${f.format ? `, format: "${f.format}"` : ""}, required: ${f.required} }`,
+  );
+  const buttonLines = ctx.buttons.map(
+    (b) => `  { label: "${b.label}", variant: "${b.variant}" }`,
+  );
+  const layoutMeta = `layout.type: ${ctx.layout.type}`;
+  const sectionNames = ctx.layout.sections
+    .filter((s) => s.heading)
+    .map((s) => `"${s.heading}"`)
+    .join(", ");
+
+  return `
+IMAGE CONTEXT — reproduce these exact details from the Figma frame:
+- Heading: "${ctx.heading}"${ctx.subheading ? `\n- Subheading: "${ctx.subheading}"` : ""}
+- Sections: [${ctx.sections.map((s) => `"${s}"`).join(", ")}]
+- Fields:
+${fieldLines.join("\n")}
+- Buttons: [${buttonLines.join(", ")}]${
+    ctx.badges.length > 0
+      ? `\n- Badges: [${ctx.badges.map((b) => `{ label: "${b.label}", color: "${b.color}" }`).join(", ")}]`
+      : ""
+  }
+- Color mood: ${ctx.colorMood}
+- Layout: ${layoutMeta}${sectionNames ? `, sections: [${sectionNames}]` : ""}${
+    ctx.assets.length > 0
+      ? `\n- Assets:\n${ctx.assets.map((a) => `  ${a.type} "${a.label}" at ${a.position} → Blade fallback: ${a.bladeFallback}`).join("\n")}`
+      : ""
+  }
+
+MATCH THESE EXACTLY — use the exact label text, section names, and button labels above.
+Map color mood to Blade tokens:
+  neutral gray → surface.background.gray.subtle
+  dark gray → surface.background.gray.intense
+  green/success → surface.background.positive.subtle
+  red/error → surface.background.negative.subtle
+  blue/brand → surface.background.primary.subtle
+For layout.type "sidebar-content": render a 240px Box sidebar + main content area.
+For layout.type "card-grid": use Box flexWrap="wrap" + Card components.
+For layout.type "header-tabs": include TopNav + TabNav + content area.
+For layout.type "single-column": use Box flexDirection="column" + Card per section.
+`;
+}
