@@ -479,10 +479,10 @@ export interface ImageContext {
 export function buildImageContextInject(ctx: ImageContext): string {
   const fieldLines = ctx.fields.map(
     (f) =>
-      `  { label: "${f.label}", type: "${f.type}"${f.format ? `, format: "${f.format}"` : ""}, required: ${f.required} }`,
+      `  { label: "${f.label.replace(/"/g, '\\"')}", type: "${f.type}"${f.format ? `, format: "${f.format.replace(/"/g, '\\"')}"` : ""}, required: ${f.required} }`,
   );
   const buttonLines = ctx.buttons.map(
-    (b) => `  { label: "${b.label}", variant: "${b.variant}" }`,
+    (b) => `  { label: "${b.label.replace(/"/g, '\\"')}", variant: "${b.variant}" }`,
   );
   const layoutMeta = `layout.type: ${ctx.layout.type}`;
   const sectionNames = ctx.layout.sections
@@ -492,32 +492,39 @@ export function buildImageContextInject(ctx: ImageContext): string {
 
   return `
 IMAGE CONTEXT — reproduce these exact details from the Figma frame:
-- Heading: "${ctx.heading}"${ctx.subheading ? `\n- Subheading: "${ctx.subheading}"` : ""}
+- Heading: "${ctx.heading.replace(/"/g, '\\"')}"${ctx.subheading ? `\n- Subheading: "${ctx.subheading.replace(/"/g, '\\"')}"` : ""}
 - Sections: [${ctx.sections.map((s) => `"${s}"`).join(", ")}]
-- Fields:
-${fieldLines.join("\n")}
-- Buttons: [${buttonLines.join(", ")}]${
+${ctx.fields.length > 0 ? `- Fields:\n${fieldLines.join("\n")}` : "- Fields: (none)"}
+- Buttons: ${ctx.buttons.length > 0 ? `[\n${buttonLines.join(",\n")}\n]` : "[]"}${
     ctx.badges.length > 0
       ? `\n- Badges: [${ctx.badges.map((b) => `{ label: "${b.label}", color: "${b.color}" }`).join(", ")}]`
       : ""
-  }
+  }${ctx.alerts.length > 0 ? `\n- Alerts: [${ctx.alerts.map((a) => `{ type: "${a.type}"${a.message ? `, message: "${a.message.replace(/"/g, '\\"')}"` : ""} }`).join(", ")}]` : ""}
 - Color mood: ${ctx.colorMood}
 - Layout: ${layoutMeta}${sectionNames ? `, sections: [${sectionNames}]` : ""}${
     ctx.assets.length > 0
       ? `\n- Assets:\n${ctx.assets.map((a) => `  ${a.type} "${a.label}" at ${a.position} → Blade fallback: ${a.bladeFallback}`).join("\n")}`
       : ""
-  }
+  }${ctx.statusIndicators.length > 0 ? `\n- Status indicators: [${ctx.statusIndicators.map((s) => `"${s}"`).join(", ")}]` : ""}
 
 MATCH THESE EXACTLY — use the exact label text, section names, and button labels above.
 Map color mood to Blade tokens:
-  neutral gray → surface.background.gray.subtle
+  neutral gray / light → surface.background.gray.subtle
+  medium gray → surface.background.gray.moderate
   dark gray → surface.background.gray.intense
-  green/success → surface.background.positive.subtle
-  red/error → surface.background.negative.subtle
-  blue/brand → surface.background.primary.subtle
+  green / success → surface.background.positive.intense
+  light green → surface.background.positive.subtle
+  red / error → surface.background.negative.intense
+  light red → surface.background.negative.subtle
+  orange / warning → surface.background.notice.intense
+  light orange / notice → surface.background.notice.subtle
+  blue / brand → surface.background.primary.intense
+  light blue → surface.background.primary.subtle
+  transparent → transparent
 For layout.type "sidebar-content": render a 240px Box sidebar + main content area.
 For layout.type "card-grid": use Box flexWrap="wrap" + Card components.
 For layout.type "header-tabs": include TopNav + TabNav + content area.
 For layout.type "single-column": use Box flexDirection="column" + Card per section.
+For layout.type "split-screen": use Box flexDirection="row" with two equal-width Box children.
 `;
 }
