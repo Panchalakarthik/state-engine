@@ -14,6 +14,7 @@ import {
   adaptScenario,
   refinePrototype,
   translateRecipeDoc,
+  verifyDesignLabels,
 } from "@/lib/generation";
 import { findRecipe } from "@/lib/blade-recipes";
 import type { AppUIMessage, StateData } from "@/lib/ai-types";
@@ -31,7 +32,11 @@ For a MODIFICATION request (user says "change", "update", "add", "make it", etc.
 1. Call generate_states directly with the existing scenarios, layoutDescription, and an instruction parameter
 2. Do NOT classify again
 
-Keep text responses to one sentence. Let the tools narrate the work.`;
+CRITICAL OUTPUT RULES — violation breaks the UI:
+- NEVER output JSX code, markdown code blocks, or component source in any text response
+- After generate_states returns, output NOTHING — no summary, no verification, no code, no explanation
+- Before tools, one sentence maximum (e.g. "Generating your screen.")
+- Tools handle everything; your text is only shown as a brief status`;
 
 const AGENT_SYSTEM_IMAGE = `You are a UI state engine for Razorpay's Blade design system.
 
@@ -40,7 +45,11 @@ The user has shared a Figma frame image. Follow these steps IN ORDER:
 2. Call classify_screen with the extracted screenName; pass the extracted field labels and button labels as the components list
 3. Call generate_states with the classify result AND the imageContext from analyze_image
 
-Keep text responses to one sentence. Let the tools narrate the work.`;
+CRITICAL OUTPUT RULES — violation breaks the UI:
+- NEVER output JSX code, markdown code blocks, or component source in any text response
+- After generate_states returns, output NOTHING — no summary, no verification, no code, no explanation
+- Before tools, one sentence maximum (e.g. "I'll analyze the image and generate all states.")
+- Tools handle everything; your text is only shown as a brief status`;
 
 const ScenarioSchema = z.object({ name: z.string(), description: z.string() });
 const LayoutSchema = z.object({
@@ -88,7 +97,11 @@ const ImageContextSchema = z.object({
     sidebar: z
       .object({
         position: z.enum(["left", "right"]),
+        width: z.string().optional(),       // e.g. "240px", "280px"
         navItems: z.array(z.string()),
+        hasIcons: z.boolean(),              // true if icons appear beside nav labels
+        itemSpacing: z.enum(["compact", "normal", "relaxed"]), // gap between nav items
+        activeStyle: z.enum(["filled", "outlined", "underline"]), // how active item is highlighted
       })
       .optional(),
     header: z
@@ -109,9 +122,39 @@ const ImageContextSchema = z.object({
           "data-rows",
           "list-items",
         ]),
+        // Auto-layout spacing from Figma
+        gap: z.enum(["none", "xs", "sm", "md", "lg"]).optional(),   // gap between items
+        padding: z.enum(["none", "xs", "sm", "md", "lg"]).optional(), // card internal padding
+        itemSizing: z.enum(["fill", "hug", "fixed"]).optional(),     // how items size themselves
+        // Row-level data for data-rows sections — captures exact items visible in the Figma
+        items: z
+          .array(
+            z.object({
+              title: z.string(),
+              description: z.string().optional(),
+              badge: z.string().optional(),
+              badgeColor: z
+                .enum(["positive", "negative", "notice", "neutral"])
+                .optional(),
+            }),
+          )
+          .optional(),
       }),
     ),
+    // Active nav item in sidebar (e.g. "Dashboard")
+    activeNavItem: z.string().optional(),
+    // Overall content area spacing
+    contentPadding: z.enum(["sm", "md", "lg"]).optional(),
+    sectionGap: z.enum(["sm", "md", "lg"]).optional(),
   }),
+  // Progress bars / step trackers visible on screen
+  progressBars: z.array(
+    z.object({
+      label: z.string(),
+      value: z.number().min(0).max(100),
+      description: z.string().optional(),
+    }),
+  ),
   assets: z.array(
     z.object({
       type: z.enum(["logo", "photo", "avatar", "icon", "illustration"]),
@@ -143,11 +186,23 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429 });
   }
 
+  // Strip empty text parts — Anthropic rejects content blocks with text: ""
+  const normalizedMessages = messages.map((msg) => {
+    if (msg.role !== "user") return msg;
+    const filtered = (msg.parts ?? []).filter((part) => {
+      const p = part as Record<string, unknown>;
+      if (p.type === "text" && (p.text === "" || p.text == null)) return false;
+      return true;
+    });
+    return { ...msg, parts: filtered };
+  }) as AppUIMessage[];
+
   // Detect image in the latest user message
   const latestMsg = messages[messages.length - 1];
+  const latestParts = latestMsg?.parts ?? [];
   const hasImage =
     latestMsg?.role === "user" &&
-    (latestMsg.parts ?? []).some(
+    latestParts.some(
       (p: unknown) => typeof p === "object" && p !== null && (p as { type: string }).type === "file",
     );
 
@@ -156,10 +211,11 @@ export async function POST(req: Request) {
 
   const stream = createUIMessageStream<AppUIMessage>({
     execute: async ({ writer }) => {
+      const modelMessages = await convertToModelMessages(normalizedMessages);
       const result = streamText({
         model,
         system: systemPrompt,
-        messages: await convertToModelMessages(messages),
+        messages: modelMessages,
         tools: {
           ...(hasImage
             ? {
@@ -290,6 +346,33 @@ export async function POST(req: Request) {
                 }
               }
 
+              // ── Design verification + auto-correction ────────────────────
+              let verification: { score: number; missing: string[] } | undefined;
+              if (imageContext) {
+                const result = verifyDesignLabels(protoJsx, imageContext);
+                verification = result;
+                if (result.missing.length >= 2) {
+                  const correctionInstruction = `CORRECTION — these exact elements from the Figma design are missing: ${result.missing.join(", ")}. You MUST include all of them verbatim.`;
+                  try {
+                    const corrected = await generatePrototype(
+                      protoScenario,
+                      layoutDescription,
+                      correctionInstruction,
+                      archetypes ?? [],
+                      req.signal,
+                      imageContext,
+                    );
+                    const afterRetry = verifyDesignLabels(corrected.jsx, imageContext);
+                    if (afterRetry.score >= result.score) {
+                      protoJsx = corrected.jsx;
+                      verification = afterRetry;
+                    }
+                  } catch (err) {
+                    if ((err as Error).name === "AbortError") throw err;
+                  }
+                }
+              }
+
               const sessionCtx = {
                 sessionId,
                 screenName: layoutDescription.screenName,
@@ -335,7 +418,7 @@ export async function POST(req: Request) {
                 }),
               );
 
-              return { stateNames: scenarios.map((s) => s.name) };
+              return { stateNames: scenarios.map((s) => s.name), verification };
             },
           },
         },

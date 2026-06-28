@@ -293,6 +293,9 @@ Output ONLY the GeneratedComponent function. No imports, no exports, no markdown
 export const SCENARIO_SYSTEM_PROMPT = `You generate a specific scenario of a UI screen using Razorpay Blade components.
 You will be given a scenario name and description that tells you exactly what the user sees.
 
+RESPONSE FORMAT (non-negotiable): Begin your response with EXACTLY the token: function GeneratedComponent() {
+Do NOT write any explanation, reasoning, analysis, preamble, or markdown fences before this token. Not even one word.
+
 ╔══════════════════════════════════════════════════════════════════╗
 ║  DASHBOARD SCREENS — MANDATORY LAYOUT (data-display archetype)  ║
 ╚══════════════════════════════════════════════════════════════════╝
@@ -423,14 +426,35 @@ EXTRACTION RULES:
 - screenName: infer from the page title or dominant heading (e.g. "KYC Page", "Payments Dashboard")
 - heading: exact text of the largest/primary heading visible
 - subheading: exact text of the subtitle below the heading, if present
-- sections: list of section headings top-to-bottom (e.g. "Personal Information", "Government ID")
+- sections: list of ALL section headings visible top-to-bottom (e.g. "Application Progress", "Application Process Overview")
 - fields: for EVERY input field visible, record exact label, infer type from label + format hint, mark required if asterisk or "required" text is near it
 - buttons: every button visible — exact label text, primary/secondary/tertiary by visual prominence
 - badges: any badge/chip/tag visible with its exact text and color
 - alerts: any alert/banner component visible
 - colorMood: 1-2 sentence description of the overall palette (e.g. "light, neutral gray card sections, green success accent")
-- layout: classify into EXACTLY one of the five supported types, then describe sections
+- layout.type: classify into EXACTLY one of the five supported types
+- layout.sidebar: if a sidebar is present, record:
+    • navItems: ALL nav labels exactly as shown
+    • hasIcons: true if icons appear beside labels
+    • width: estimated pixel width (e.g. "240px", "280px")
+    • itemSpacing: compact (tight rows), normal (standard), relaxed (airy)
+    • activeStyle: filled (colored background block), outlined (border), underline (bottom border)
+    • activeNavItem: the label of the currently selected/highlighted item
+- layout.header: if a top nav bar is present, record its type, whether an avatar and search are shown
+- layout.sections: for EACH visible content section, record:
+    • heading: exact section title
+    • containerType: card (has border/shadow) or plain (no container border)
+    • columns: count how many items appear PER ROW (one full-width row = 1, two side-by-side = 2, etc.)
+    • contentType: form-fields | metric-cards | data-rows | list-items
+    • gap: none | xs (4px) | sm (8px) | md (16px) | lg (24px) — gap between sibling items
+    • padding: none | xs | sm | md | lg — internal padding inside each card/container
+    • itemSizing: fill (items stretch to fill width), hug (items shrink to content), fixed (items have a set width)
+    • items: for data-rows sections, list EVERY visible row: { title, description, badge, badgeColor: positive|notice|neutral|negative }
+- layout.contentPadding: sm | md | lg — padding of the main content area from the viewport edge
+- layout.sectionGap: sm | md | lg — vertical gap between top-level sections
+- progressBars: for any progress bar or step tracker visible, record label, current percentage value (0-100), and the description text (e.g. "1 of 5 steps completed")
 - assets: every logo, photo, illustration, avatar, or custom icon visible — describe and give the Blade fallback
+- statusIndicators: list every distinct status label visible (e.g. "Completed", "Current Step", "Pending")
 
 If a value is not visible, omit that optional field rather than guessing.`;
 
@@ -453,7 +477,11 @@ export interface ImageContext {
     type: "single-column" | "sidebar-content" | "split-screen" | "card-grid" | "header-tabs";
     sidebar?: {
       position: "left" | "right";
+      width?: string;
       navItems: string[];
+      hasIcons: boolean;
+      itemSpacing: "compact" | "normal" | "relaxed";
+      activeStyle: "filled" | "outlined" | "underline";
     };
     header?: {
       type: "topnav" | "simple-heading";
@@ -465,8 +493,25 @@ export interface ImageContext {
       containerType: "card" | "plain";
       columns: 1 | 2 | 3;
       contentType: "form-fields" | "metric-cards" | "data-rows" | "list-items";
+      gap?: "none" | "xs" | "sm" | "md" | "lg";
+      padding?: "none" | "xs" | "sm" | "md" | "lg";
+      itemSizing?: "fill" | "hug" | "fixed";
+      items?: Array<{
+        title: string;
+        description?: string;
+        badge?: string;
+        badgeColor?: "positive" | "negative" | "notice" | "neutral";
+      }>;
     }>;
+    activeNavItem?: string;
+    contentPadding?: "sm" | "md" | "lg";
+    sectionGap?: "sm" | "md" | "lg";
   };
+  progressBars: Array<{
+    label: string;
+    value: number;
+    description?: string;
+  }>;
   assets: Array<{
     type: "logo" | "photo" | "avatar" | "icon" | "illustration";
     label: string;
@@ -484,11 +529,114 @@ export function buildImageContextInject(ctx: ImageContext): string {
   const buttonLines = ctx.buttons.map(
     (b) => `  { label: "${b.label.replace(/"/g, '\\"')}", variant: "${b.variant}" }`,
   );
-  const layoutMeta = `layout.type: ${ctx.layout.type}`;
-  const sectionNames = ctx.layout.sections
+
+  // Spacing token maps — Figma abstract → Blade spacing token
+  const gapToken: Record<string, string> = {
+    none: "spacing.0",
+    xs: "spacing.2",
+    sm: "spacing.3",
+    md: "spacing.4",
+    lg: "spacing.6",
+  };
+  const paddingToken: Record<string, string> = {
+    none: "spacing.0",
+    xs: "spacing.2",
+    sm: "spacing.3",
+    md: "spacing.4",
+    lg: "spacing.6",
+  };
+
+  // Full section detail including spacing + items for data-rows sections
+  const sectionDetails = ctx.layout.sections
+    .map((s) => {
+      const parts = [
+        `heading: "${(s.heading ?? "").replace(/"/g, '\\"')}"`,
+        `columns: ${s.columns}`,
+        `containerType: "${s.containerType}"`,
+        `contentType: "${s.contentType}"`,
+        s.gap ? `gap: "${gapToken[s.gap] ?? "spacing.4"}"` : null,
+        s.padding ? `padding: "${paddingToken[s.padding] ?? "spacing.4"}"` : null,
+        s.itemSizing ? `itemSizing: "${s.itemSizing}"` : null,
+      ].filter(Boolean).join(", ");
+      if (s.items && s.items.length > 0) {
+        const itemLines = s.items
+          .map(
+            (item) =>
+              `      { title: "${item.title.replace(/"/g, '\\"')}"${item.description ? `, description: "${item.description.replace(/"/g, '\\"')}"` : ""}${item.badge ? `, badge: "${item.badge.replace(/"/g, '\\"')}"` : ""}${item.badgeColor ? `, badgeColor: "${item.badgeColor}"` : ""} }`,
+          )
+          .join(",\n");
+        return `  { ${parts}, items: [\n${itemLines}\n    ] }`;
+      }
+      return `  { ${parts} }`;
+    })
+    .join(",\n");
+
+  // Per-section layout rules including exact row items and spacing
+  const sectionLayoutRules = ctx.layout.sections
     .filter((s) => s.heading)
-    .map((s) => `"${s.heading}"`)
-    .join(", ");
+    .map((s) => {
+      const q = `"${s.heading}"`;
+      const itemGap = s.gap ? gapToken[s.gap] : "spacing.3";
+      const cardPad = s.padding ? paddingToken[s.padding] : "spacing.4";
+      const sizing = s.itemSizing === "fill" ? "width=\"100%\"" : s.itemSizing === "hug" ? "" : "";
+
+      if (s.columns === 1) {
+        if (s.contentType === "data-rows") {
+          const rowsDesc =
+            s.items && s.items.length > 0
+              ? `\n    Rows IN ORDER — full-width, title+description on LEFT, badge on RIGHT (justifyContent="space-between"):\n` +
+                s.items
+                  .map(
+                    (item) =>
+                      `      • "${item.title}"${item.description ? ` — "${item.description}"` : ""} → <Badge color="${item.badgeColor ?? "neutral"}">${item.badge ?? ""}</Badge>`,
+                  )
+                  .join("\n")
+              : "";
+          return `  - Section ${q}: Box flexDirection="column" gap="${itemGap}" ${sizing}. Each row is a ${s.containerType === "card" ? `Card with CardBody padding="${cardPad}"` : `Box padding="${cardPad}"`} with justifyContent="space-between". NEVER flexWrap.${rowsDesc}`;
+        }
+        if (s.contentType === "form-fields") {
+          return `  - Section ${q}: Box flexDirection="column" gap="${itemGap}". One field per row. ${s.containerType === "card" ? `Wrap in Card padding="${cardPad}".` : ""}`;
+        }
+        if (s.contentType === "metric-cards") {
+          return `  - Section ${q}: single metric Card padding="${cardPad}", full width.`;
+        }
+        return `  - Section ${q}: Box flexDirection="column" gap="${itemGap}".`;
+      }
+      return `  - Section ${q}: Box display="flex" flexWrap="wrap" gap="${itemGap}". Each item width="${Math.floor(100 / s.columns)}%" with ${s.containerType === "card" ? `Card padding="${cardPad}"` : "plain Box"}.`;
+    })
+    .join("\n");
+
+  const outerPaddingToken: Record<string, string> = {
+    sm: "spacing.4",
+    md: "spacing.6",
+    lg: "spacing.8",
+  };
+
+  // Sidebar nav with full auto-layout detail
+  const sb = ctx.layout.sidebar;
+  const sidebarBlock = sb && sb.navItems.length > 0
+    ? [
+        `- Sidebar nav items: [${sb.navItems.map((n) => `"${n}"`).join(", ")}]`,
+        sb.hasIcons ? `- Sidebar item layout: icon + label (icon on left)` : `- Sidebar item layout: label only`,
+        `- Sidebar item gap: ${sb.itemSpacing === "compact" ? "spacing.1" : sb.itemSpacing === "relaxed" ? "spacing.3" : "spacing.2"} between each nav item`,
+        `- Sidebar item padding: ${sb.itemSpacing === "compact" ? "spacing.2" : sb.itemSpacing === "relaxed" ? "spacing.4" : "spacing.3"} horizontal, ${sb.itemSpacing === "compact" ? "spacing.1" : "spacing.2"} vertical`,
+        `- Sidebar active style: ${sb.activeStyle === "filled" ? 'backgroundColor on active item Box (e.g. surface.background.gray.moderate)' : sb.activeStyle === "outlined" ? 'border on active item' : 'borderBottom on active item'}`,
+        sb.width ? `- Sidebar width: ${sb.width}` : `- Sidebar width: 240px`,
+        ctx.layout.activeNavItem ? `- Active nav item: "${ctx.layout.activeNavItem}"` : "",
+      ].filter(Boolean).join("\n")
+    : "";
+
+  // Progress bars
+  const progressBlock =
+    ctx.progressBars && ctx.progressBars.length > 0
+      ? `- Progress bars:\n` +
+        ctx.progressBars
+          .map(
+            (p) =>
+              `  • "${p.label}": ${p.value}%${p.description ? ` (${p.description})` : ""}`,
+          )
+          .join("\n")
+      : "";
 
   return `
 IMAGE CONTEXT — reproduce these exact details from the Figma frame:
@@ -501,14 +649,18 @@ ${ctx.fields.length > 0 ? `- Fields:\n${fieldLines.join("\n")}` : "- Fields: (no
       : ""
   }${ctx.alerts.length > 0 ? `\n- Alerts: [${ctx.alerts.map((a) => `{ type: "${a.type}"${a.message ? `, message: "${a.message.replace(/"/g, '\\"')}"` : ""} }`).join(", ")}]` : ""}
 - Color mood: ${ctx.colorMood}
-- Layout: ${layoutMeta}${sectionNames ? `, sections: [${sectionNames}]` : ""}${
+${sidebarBlock ? sidebarBlock + "\n" : ""}- Layout type: ${ctx.layout.type}
+- Layout sections (columns + items MUST be reproduced exactly):
+${sectionDetails}
+${progressBlock ? progressBlock + "\n" : ""}${ctx.statusIndicators.length > 0 ? `- Status indicators: [${ctx.statusIndicators.map((s) => `"${s}"`).join(", ")}]` : ""}${
     ctx.assets.length > 0
       ? `\n- Assets:\n${ctx.assets.map((a) => `  ${a.type} "${a.label}" at ${a.position} → Blade fallback: ${a.bladeFallback}`).join("\n")}`
       : ""
-  }${ctx.statusIndicators.length > 0 ? `\n- Status indicators: [${ctx.statusIndicators.map((s) => `"${s}"`).join(", ")}]` : ""}
+  }
 
-MATCH THESE EXACTLY — use the exact label text, section names, and button labels above.
-Map color mood to Blade tokens:
+MATCH THESE EXACTLY — use the exact label text, section names, button labels, and row items above.
+
+COLOR MAPPING (Blade tokens only — never hex or CSS color names):
   neutral gray / light → surface.background.gray.subtle
   medium gray → surface.background.gray.moderate
   dark gray → surface.background.gray.intense
@@ -521,10 +673,20 @@ Map color mood to Blade tokens:
   blue / brand → surface.background.primary.intense
   light blue → surface.background.primary.subtle
   transparent → transparent
-For layout.type "sidebar-content": render a 240px Box sidebar + main content area.
-For layout.type "card-grid": use Box flexWrap="wrap" + Card components.
-For layout.type "header-tabs": include TopNav + TabNav + content area.
-For layout.type "single-column": use Box flexDirection="column" + Card per section.
-For layout.type "split-screen": use Box flexDirection="row" with two equal-width Box children.
+
+PAGE SKELETON:
+  sidebar-content → ${sb?.width ?? "240px"} Box sidebar (left) + Box flex="1" main area; content padding="${outerPaddingToken[ctx.layout.contentPadding ?? "md"] ?? "spacing.6"}"
+  single-column   → Box flexDirection="column" padding="${outerPaddingToken[ctx.layout.contentPadding ?? "md"] ?? "spacing.6"}" + Card per section
+  split-screen    → Box flexDirection="row", two equal-width Box children
+  header-tabs     → TopNav + TabNav + content area
+
+Top-level section gap: gap="${outerPaddingToken[ctx.layout.sectionGap ?? "md"] ?? "spacing.6"}"
+
+SECTION LAYOUT RULES — non-negotiable, wrong layout = broken design:
+${sectionLayoutRules || "  Follow PAGE SKELETON rules above."}
+
+For progress bars: use a Box (gray track) + inner Box width="{value}%" backgroundColor="surface.background.primary.intense" for the fill. Show label above and percentage + description below.
+For sidebar active item: ${sb?.activeStyle === "filled" ? 'backgroundColor="surface.background.gray.moderate" on the active nav item Box' : sb?.activeStyle === "outlined" ? "border on active item Box" : "borderBottom on active item Box"}.
+For sidebar nav items: ${sb?.hasIcons ? `each item is Box display="flex" alignItems="center" gap="${sb.itemSpacing === "compact" ? "spacing.2" : "spacing.3"}" with <Icon /> + <Text size="small">` : `each item is Box padding="spacing.3" with <Text size="small">`}.
 `;
 }

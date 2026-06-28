@@ -156,12 +156,11 @@ export default function Workspace() {
             reader.readAsDataURL(imageFile);
           });
 
-          sendMessage({
-            parts: [
-              { type: "file", mediaType: imageFile.type, url: dataUrl },
-              { type: "text", text: value },
-            ],
-          } as Parameters<typeof sendMessage>[0]);
+          const parts = [
+            { type: "file" as const, mediaType: imageFile.type, url: dataUrl },
+            ...(value ? [{ type: "text" as const, text: value }] : []),
+          ];
+          sendMessage({ parts } as Parameters<typeof sendMessage>[0]);
         } catch {
           console.error("[handleSend] FileReader failed — image could not be read");
         }
