@@ -159,9 +159,22 @@ function isBracketsBalanced(code: string): boolean {
 
 export function cleanJsx(text: string): string {
   let cleaned = text.trim();
-  cleaned = cleaned.replace(/^```(?:jsx|tsx|js|javascript)?\s*/i, "");
-  cleaned = cleaned.replace(/```\s*$/i, "");
-  cleaned = cleaned.trim();
+
+  // Model sometimes outputs reasoning text before a ```…``` block — extract only the fence content
+  const fenceMatch = cleaned.match(/```(?:jsx|tsx|js|javascript)?\s*\n([\s\S]*?)```/);
+  if (fenceMatch) {
+    cleaned = fenceMatch[1].trim();
+  } else {
+    // Strip leading/trailing bare fences (no preamble)
+    cleaned = cleaned.replace(/^```(?:jsx|tsx|js|javascript)?\s*/i, "");
+    cleaned = cleaned.replace(/```\s*$/i, "");
+    cleaned = cleaned.trim();
+  }
+
+  // Strip any remaining preamble before the function declaration
+  const fnMatch = cleaned.match(/(function\s+GeneratedComponent\s*\(\s*\)[\s\S]*)/);
+  if (fnMatch) cleaned = fnMatch[1].trim();
+
   if (!cleaned.endsWith("}") || !isBracketsBalanced(cleaned)) {
     throw new Error("Generated JSX was truncated. Please try again.");
   }
@@ -232,12 +245,13 @@ export async function generatePrototype(
 
   const imageBlock = imageContext ? buildImageContextInject(imageContext) : "";
 
-  const userContent = `Layout description:
+  // imageBlock goes FIRST so the model sees exact labels before generating any structure
+  const userContent = `${imageBlock ? imageBlock + "\n" : ""}Layout description:
 ${JSON.stringify(layoutDescription, null, 2)}
 
 Scenario: "prototype"
 What the user sees: ${scenario.description}
-${userInstruction ? `\nAdditional instruction: ${userInstruction}` : ""}${imageBlock}
+${userInstruction ? `\nAdditional instruction: ${userInstruction}` : ""}
 
 Generate the prototype scenario. Output ONLY the GeneratedComponent function.`;
 
@@ -279,4 +293,102 @@ Output ONLY the modified GeneratedComponent function.`;
 
   const raw = await callClaude(REFINE_PROMPT, userContent, signal);
   return { jsx: cleanJsx(raw), description: instruction };
+}
+
+export function verifyDesignLabels(
+  jsx: string,
+  ctx: ImageContext,
+): { missing: string[]; score: number } {
+  // Each check is { label, passed } — collected here, then missing/score derived at end
+  const checks: Array<{ label: string; passed: boolean }> = [];
+  const lowerJsx = jsx.toLowerCase();
+
+  // ── 1. Primary heading ────────────────────────────────────────────────────
+  if (ctx.heading) {
+    checks.push({
+      label: `heading "${ctx.heading}"`,
+      passed: lowerJsx.includes(ctx.heading.toLowerCase()),
+    });
+  }
+
+  // ── 2. Section headings (top-level section titles) ────────────────────────
+  for (const section of ctx.sections) {
+    if (section) {
+      checks.push({
+        label: `section "${section}"`,
+        passed: lowerJsx.includes(section.toLowerCase()),
+      });
+    }
+  }
+
+  // ── 3. Form field labels ──────────────────────────────────────────────────
+  for (const field of ctx.fields) {
+    if (field.label) {
+      checks.push({
+        label: `field "${field.label}"`,
+        passed: lowerJsx.includes(field.label.toLowerCase()),
+      });
+    }
+  }
+
+  // ── 4. Button labels ──────────────────────────────────────────────────────
+  for (const button of ctx.buttons) {
+    if (button.label) {
+      checks.push({
+        label: `button "${button.label}"`,
+        passed: lowerJsx.includes(button.label.toLowerCase()),
+      });
+    }
+  }
+
+  // ── 5. Status indicators (e.g. "Completed", "Current Step", "Pending") ───
+  for (const indicator of ctx.statusIndicators) {
+    if (indicator) {
+      checks.push({
+        label: `status "${indicator}"`,
+        passed: lowerJsx.includes(indicator.toLowerCase()),
+      });
+    }
+  }
+
+  // ── 6. Sidebar presence ───────────────────────────────────────────────────
+  if (ctx.layout.type === "sidebar-content") {
+    checks.push({
+      label: `layout: sidebar (240px) present`,
+      passed: lowerJsx.includes("240px"),
+    });
+  }
+
+  // ── 7. Per-section structural checks ─────────────────────────────────────
+  for (const section of ctx.layout.sections) {
+    if (!section.heading) continue;
+    const headingPos = lowerJsx.indexOf(section.heading.toLowerCase());
+    if (headingPos < 0) continue; // heading not found — already caught in check 2
+    // Inspect the 800 chars of JSX following the section heading
+    const region = lowerJsx.slice(headingPos, headingPos + 800);
+    const hasWrap = region.includes("flexwrap") || region.includes('"wrap"');
+
+    if (section.columns === 1 && section.contentType === "data-rows") {
+      // Single-column list must be vertical — flexWrap here means horizontal grid (wrong)
+      checks.push({
+        label: `layout: "${section.heading}" is vertical list (not horizontal grid)`,
+        passed: !hasWrap,
+      });
+    } else if (section.columns > 1 && section.contentType !== "form-fields") {
+      // Multi-column grid should use flexWrap or similar
+      checks.push({
+        label: `layout: "${section.heading}" is ${section.columns}-column grid`,
+        passed: hasWrap,
+      });
+    }
+  }
+
+  const failed = checks.filter((c) => !c.passed);
+  const score =
+    checks.length === 0 ? 100 : Math.round(((checks.length - failed.length) / checks.length) * 100);
+
+  return {
+    missing: failed.map((c) => c.label),
+    score,
+  };
 }

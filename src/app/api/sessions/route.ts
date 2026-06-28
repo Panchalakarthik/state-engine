@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 import type { Session } from "@/lib/types";
@@ -7,6 +8,7 @@ async function ensureTable() {
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS sessions (
       id VARCHAR(36) NOT NULL,
+      user_id VARCHAR(255),
       screen_name VARCHAR(255) NOT NULL,
       components JSON NOT NULL,
       archetypes JSON NOT NULL,
@@ -22,6 +24,9 @@ async function ensureTable() {
   `);
   // Migrate existing tables: errno 1060 = "Duplicate column name" (column already exists — safe to ignore)
   await pool.execute(`ALTER TABLE sessions ADD COLUMN messages JSON`).catch((err: unknown) => {
+    if ((err as { errno?: number })?.errno !== 1060) console.warn("sessions migration:", (err as Error)?.message);
+  });
+  await pool.execute(`ALTER TABLE sessions ADD COLUMN user_id VARCHAR(255)`).catch((err: unknown) => {
     if ((err as { errno?: number })?.errno !== 1060) console.warn("sessions migration:", (err as Error)?.message);
   });
 }
@@ -58,12 +63,14 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     await ensureTable();
+    const { userId } = await auth();
     const session: Session = await req.json();
     await pool.execute(
       `INSERT INTO sessions
-        (id, screen_name, components, archetypes, layout_description, scenarios, states, active_state, messages, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, user_id, screen_name, components, archetypes, layout_description, scenarios, states, active_state, messages, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
+        user_id = COALESCE(VALUES(user_id), user_id),
         screen_name = VALUES(screen_name),
         components = VALUES(components),
         archetypes = VALUES(archetypes),
@@ -75,6 +82,7 @@ export async function POST(req: Request) {
         updated_at = VALUES(updated_at)`,
       [
         session.id,
+        userId ?? null,
         session.screenName,
         JSON.stringify(session.components),
         JSON.stringify(session.archetypes),

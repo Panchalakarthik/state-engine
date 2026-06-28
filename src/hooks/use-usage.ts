@@ -25,10 +25,18 @@ export function useUsage() {
   }, []);
 
   const incrementUsage = useCallback(async (): Promise<boolean> => {
-    const res = await fetch("/api/usage", { method: "POST" });
-    const data = await res.json();
-    setUsage({ ...data, loading: false });
-    return !data.limitReached;
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2000);
+      const res = await fetch("/api/usage", { method: "POST", signal: controller.signal });
+      clearTimeout(timer);
+      if (!res.ok) return true;
+      const data = await res.json();
+      setUsage({ ...data, loading: false });
+      return !data.limitReached;
+    } catch {
+      return true;
+    }
   }, []);
 
   return { usage, incrementUsage };

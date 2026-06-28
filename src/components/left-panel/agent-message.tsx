@@ -149,7 +149,13 @@ function ClassifyStep({ part }: { part: AnyPart }) {
 
 // ─── Tool: generate_states (done state) ──────────────────────────────────────
 
-function GenerateDone({ names }: { names: string[] }) {
+function GenerateDone({
+  names,
+  verification,
+}: {
+  names: string[];
+  verification?: { score: number; missing: string[] };
+}) {
   const [textDone, setTextDone] = useState(false);
   const [visibleCount, setVisibleCount] = useState(0);
 
@@ -163,6 +169,8 @@ function GenerateDone({ names }: { names: string[] }) {
     }, 150);
     return () => clearInterval(iv);
   }, [textDone, names.length]);
+
+  const isMatch = !verification || verification.score >= 90;
 
   return (
     <div style={{ marginBottom: 14 }}>
@@ -193,6 +201,31 @@ function GenerateDone({ names }: { names: string[] }) {
           ))}
         </div>
       )}
+      {verification && textDone && (
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
+          {isMatch ? (
+            <>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <circle cx="6.5" cy="6.5" r="6" stroke="#22c55e" />
+                <path d="M4 6.5L6 8.5L9.5 4.5" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span style={{ fontSize: 11, color: "#22c55e" }}>
+                Design match {verification.score}%
+              </span>
+            </>
+          ) : (
+            <>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <circle cx="6.5" cy="6.5" r="6" stroke="#f59e0b" />
+                <path d="M6.5 4V7M6.5 9v.5" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              <span style={{ fontSize: 11, color: "#f59e0b" }}>
+                Design match {verification.score}% — {verification.missing.length} item{verification.missing.length !== 1 ? "s" : ""} may differ
+              </span>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -201,7 +234,7 @@ function GenerateStep({ part, statesReady, isStopped }: { part: AnyPart; statesR
   const isDone = part.state === "output-available";
   const isError = part.state === "output-error";
   const input = part.input as { scenarios?: { name: string }[]; instruction?: string } | undefined;
-  const output = part.output as { stateNames?: string[] } | undefined;
+  const output = part.output as { stateNames?: string[]; verification?: { score: number; missing: string[] } } | undefined;
   const total = input?.scenarios?.length ?? 0;
   const isRefine = Boolean(input?.instruction);
 
@@ -210,7 +243,7 @@ function GenerateStep({ part, statesReady, isStopped }: { part: AnyPart; statesR
   }
 
   if (isDone && output) {
-    return <GenerateDone names={output.stateNames ?? []} />;
+    return <GenerateDone names={output.stateNames ?? []} verification={output.verification} />;
   }
 
   if (isStopped) {
@@ -299,11 +332,17 @@ export default function AgentMessage({
 
   const parts = (message.parts ?? []) as AnyPart[];
   let reasoningIdx = 0;
+  let generateStatesDone = false;
 
   return (
     <div className="mb-4">
       {parts.map((part, i) => {
         if (part.type === "step-start" || part.type === "data-state") return null;
+
+        // Track when generation completes so we can suppress the model's post-tool text dump
+        if (part.type === "tool-generate_states" && part.state === "output-available") {
+          generateStatesDone = true;
+        }
 
         if (part.type === "reasoning") {
           const idx = reasoningIdx++;
@@ -353,9 +392,15 @@ export default function AgentMessage({
         }
 
         if (part.type === "text" && part.text) {
+          // Suppress any text the model outputs after generate_states finishes —
+          // it always dumps a verbose "verification summary" with JSX code we don't want
+          if (generateStatesDone) return null;
+          // Strip markdown code blocks — model sometimes leaks JSX into text parts
+          const cleaned = part.text.replace(/```[\s\S]*?```/g, "").replace(/`[^`]+`/g, "").trim();
+          if (!cleaned) return null;
           return (
             <p key={i} style={{ fontSize: 15, lineHeight: 1.6, color: "#f0f0f0", marginBottom: 12 }}>
-              {part.text}
+              {cleaned}
             </p>
           );
         }

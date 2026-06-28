@@ -32,9 +32,17 @@ export function useSessions(): UseSessionsReturn {
     sessions.find((s) => s.id === activeSessionId) ?? null;
 
   const persistSession = useCallback(async (session: Session) => {
-    const updated = await saveSession(session);
-    setSessions(updated);
+    // Optimistically update local state immediately so canvas renders
+    setSessions((prev) => {
+      const idx = prev.findIndex((s) => s.id === session.id);
+      return idx >= 0
+        ? prev.map((s) => (s.id === session.id ? session : s))
+        : [session, ...prev];
+    });
     setActiveSessionId(session.id);
+    // Persist to DB in background — if it fails, local state is already correct
+    const updated = await saveSession(session);
+    if (updated.length > 0) setSessions(updated);
   }, []);
 
   const removeSession = useCallback(
@@ -49,8 +57,13 @@ export function useSessions(): UseSessionsReturn {
   );
 
   const setActiveState = useCallback(async (sessionId: string, stateName: string) => {
+    // Optimistic update — switch canvas immediately without waiting for DB
+    setSessions((prev) =>
+      prev.map((s) => (s.id === sessionId ? { ...s, activeState: stateName } : s)),
+    );
+    // Persist to DB in background — if it fails, local state stays correct
     const updated = await updateSessionState(sessionId, stateName);
-    setSessions(updated);
+    if (updated.length > 0) setSessions(updated);
   }, []);
 
   const startNewSession = useCallback(() => {

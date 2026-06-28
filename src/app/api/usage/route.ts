@@ -26,29 +26,39 @@ export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await ensureTable();
-  const count = await getCount(userId);
-  return NextResponse.json({ count, limit: LIMIT, limitReached: count >= LIMIT });
+  try {
+    await ensureTable();
+    const count = await getCount(userId);
+    return NextResponse.json({ count, limit: LIMIT, limitReached: count >= LIMIT });
+  } catch (err) {
+    console.error("GET /api/usage error:", err);
+    return NextResponse.json({ count: 0, limit: LIMIT, limitReached: false });
+  }
 }
 
 export async function POST() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await ensureTable();
-  const count = await getCount(userId);
+  try {
+    await ensureTable();
+    const count = await getCount(userId);
 
-  if (count >= LIMIT) {
-    return NextResponse.json({ count, limit: LIMIT, limitReached: true });
+    if (count >= LIMIT) {
+      return NextResponse.json({ count, limit: LIMIT, limitReached: true });
+    }
+
+    await pool.execute(
+      `INSERT INTO user_usage (user_id, question_count)
+       VALUES (?, 1)
+       ON DUPLICATE KEY UPDATE question_count = question_count + 1`,
+      [userId]
+    );
+
+    const newCount = count + 1;
+    return NextResponse.json({ count: newCount, limit: LIMIT, limitReached: newCount >= LIMIT });
+  } catch (err) {
+    console.error("POST /api/usage error:", err);
+    return NextResponse.json({ count: 0, limit: LIMIT, limitReached: false });
   }
-
-  await pool.execute(
-    `INSERT INTO user_usage (user_id, question_count)
-     VALUES (?, 1)
-     ON DUPLICATE KEY UPDATE question_count = question_count + 1`,
-    [userId]
-  );
-
-  const newCount = count + 1;
-  return NextResponse.json({ count: newCount, limit: LIMIT, limitReached: newCount >= LIMIT });
 }
