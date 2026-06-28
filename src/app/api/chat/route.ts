@@ -4,6 +4,7 @@ import {
   createUIMessageStreamResponse,
   convertToModelMessages,
   stepCountIs,
+  hasToolCall,
 } from "ai";
 import { z } from "zod";
 import { checkRateLimit } from "@/lib/rate-limiter";
@@ -65,27 +66,28 @@ const LayoutSchema = z.object({
 });
 
 const ImageContextSchema = z.object({
-  screenName: z.string(),
-  heading: z.string(),
+  // .catch() on every required string/array — first model call often has minor shape issues
+  screenName: z.string().catch("Unknown Screen"),
+  heading: z.string().catch(""),
   subheading: z.string().optional(),
-  sections: z.array(z.string()),
+  sections: z.array(z.string().catch("")).catch([]),
   fields: z.array(
     z.object({
-      label: z.string(),
+      label: z.string().catch(""),
       type: z.enum(["text", "email", "password", "phone", "date", "number", "textarea"]).catch("text"),
       format: z.string().optional(),
       required: z.boolean().catch(false),
     }),
-  ),
+  ).catch([]),
   buttons: z.array(
     z.object({
-      label: z.string(),
+      label: z.string().catch(""),
       variant: z.enum(["primary", "secondary", "tertiary"]).catch("primary"),
     }),
-  ),
-  badges: z.array(z.object({ label: z.string(), color: z.string() })).optional().default([]),
-  alerts: z.array(z.object({ type: z.string(), message: z.string().optional() })).optional().default([]),
-  colorMood: z.string(),
+  ).catch([]),
+  badges: z.array(z.object({ label: z.string().catch(""), color: z.string().catch("neutral") })).optional().default([]),
+  alerts: z.array(z.object({ type: z.string().catch(""), message: z.string().optional() })).optional().default([]),
+  colorMood: z.string().catch(""),
   layout: z.object({
     type: z.enum([
       "single-column",
@@ -98,7 +100,7 @@ const ImageContextSchema = z.object({
       .object({
         position: z.enum(["left", "right"]).catch("left"),
         width: z.string().optional(),
-        navItems: z.array(z.string()),
+        navItems: z.array(z.string().catch("")).catch([]),
         hasIcons: z.boolean().catch(false),
         itemSpacing: z.enum(["compact", "normal", "relaxed"]).catch("normal"),
         activeStyle: z.enum(["filled", "outlined", "underline"]).catch("filled"),
@@ -122,19 +124,14 @@ const ImageContextSchema = z.object({
           "data-rows",
           "list-items",
         ]).catch("form-fields"),
-        // Auto-layout spacing from Figma
-        gap: z.enum(["none", "xs", "sm", "md", "lg"]).optional(),   // gap between items
-        padding: z.enum(["none", "xs", "sm", "md", "lg"]).optional(), // card internal padding
-        itemSizing: z.enum(["fill", "hug", "fixed"]).optional(),     // how items size themselves
-        // For form-fields: each inner array is one visual row of field labels.
-        // e.g. [["Full Name"], ["Address"], ["City", "State"], ["Postal Code", "Country"]]
-        // means City+State share a row, Postal Code+Country share a row.
-        fieldRows: z.array(z.array(z.string())).optional(),
-        // Row-level data for data-rows sections — captures exact items visible in the Figma
+        gap: z.enum(["none", "xs", "sm", "md", "lg"]).optional(),
+        padding: z.enum(["none", "xs", "sm", "md", "lg"]).optional(),
+        itemSizing: z.enum(["fill", "hug", "fixed"]).optional(),
+        fieldRows: z.array(z.array(z.string().catch(""))).catch([]).optional(),
         items: z
           .array(
             z.object({
-              title: z.string(),
+              title: z.string().catch(""),
               description: z.string().optional(),
               badge: z.string().optional(),
               badgeColor: z
@@ -144,30 +141,27 @@ const ImageContextSchema = z.object({
           )
           .optional(),
       }),
-    ),
-    // Active nav item in sidebar (e.g. "Dashboard")
+    ).catch([]),
     activeNavItem: z.string().optional(),
-    // Overall content area spacing
     contentPadding: z.enum(["sm", "md", "lg"]).optional(),
     sectionGap: z.enum(["sm", "md", "lg"]).optional(),
-  }),
-  // Progress bars / step trackers visible on screen — optional: omit if none visible
+  }).catch({ type: "single-column", sections: [] } as never),
   progressBars: z.array(
     z.object({
-      label: z.string(),
-      value: z.number().min(0).max(100),
+      label: z.string().catch(""),
+      value: z.number().min(0).max(100).catch(0),
       description: z.string().optional(),
     }),
   ).optional(),
   assets: z.array(
     z.object({
-      type: z.enum(["logo", "photo", "avatar", "icon", "illustration"]),
-      label: z.string(),
-      position: z.string(),
-      bladeFallback: z.string(),
+      type: z.enum(["logo", "photo", "avatar", "icon", "illustration"]).catch("icon"),
+      label: z.string().catch(""),
+      position: z.string().catch(""),
+      bladeFallback: z.string().catch(""),
     }),
   ).optional(),
-  statusIndicators: z.array(z.string()).optional(),
+  statusIndicators: z.array(z.string().catch("")).optional(),
 });
 
 export async function POST(req: Request) {
@@ -426,7 +420,8 @@ export async function POST(req: Request) {
             },
           },
         },
-        stopWhen: stepCountIs(6),
+        // Stop as soon as generate_states has fired — prevents any model text after tool calls
+      stopWhen: [hasToolCall("generate_states"), stepCountIs(6)],
       });
 
       writer.merge(result.toUIMessageStream({ sendReasoning: true }));

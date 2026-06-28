@@ -393,10 +393,19 @@ export default function AgentMessage({
         }
 
         if (part.type === "text" && part.text) {
-          // Suppress all text once any tool has fired — the model should only
-          // output a brief status sentence before its first tool call
+          // Suppress all text once any tool has fired
           if (firstToolSeen) return null;
-          const cleaned = part.text.replace(/```[\s\S]*?```/g, "").replace(/`[^`]+`/g, "").trim();
+          // Hard-block JSX/code dumps even before the first tool (Sonnet sometimes
+          // outputs code in its pre-tool reasoning text)
+          const raw = part.text;
+          const isCode =
+            raw.includes("```") ||
+            /\bexport\s+(const|function|default)\b/.test(raw) ||
+            raw.includes("function GeneratedComponent") ||
+            /\bimport\s+React\b/.test(raw) ||
+            raw.includes("const [") && raw.includes("useState(");
+          if (isCode) return null;
+          const cleaned = raw.replace(/`[^`]+`/g, "").trim();
           if (!cleaned) return null;
           return (
             <p key={i} style={{ fontSize: 15, lineHeight: 1.6, color: "#f0f0f0", marginBottom: 12 }}>
