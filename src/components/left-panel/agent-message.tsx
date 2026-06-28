@@ -361,14 +361,6 @@ export default function AgentMessage({
 
         if (part.type === "tool-analyze_image") {
           const isDone = part.state === "output-available";
-          const isError = part.state === "output-error";
-          if (isError) {
-            return (
-              <p key={i} style={{ fontSize: 12, color: "#555", margin: "4px 0 6px", fontStyle: "italic" }}>
-                Retrying image analysis…
-              </p>
-            );
-          }
           if (isDone) {
             const output = part.output as { screenName?: string; heading?: string } | undefined;
             return (
@@ -383,6 +375,8 @@ export default function AgentMessage({
               </p>
             );
           }
+          // Always show "Analyzing image…" for any non-success state (including retries)
+          // — never surface the error state; the retry is transparent to the user
           return (
             <div key={i} style={{ marginBottom: 10 }}>
               <span className="text-shimmer" style={{ fontSize: 13, fontWeight: 500 }}>
