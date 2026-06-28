@@ -422,13 +422,61 @@ SCENARIO RENDERING RULES:
         const [state, setState] = useState('Maharashtra');
         const [postal, setPostal] = useState('400001');
         const [country, setCountry] = useState('India');
-      Only "New Password" / "Confirm Password" / "OTP" fields may start empty.
+      Only "New Password" / "Confirm Password" / "OTP" / "CVV" fields may start empty.
+      Add these pre-fill defaults for Indian finance fields:
+        const [cardNumber, setCardNumber] = useState('4111 1111 1111 1111');
+        const [cardExpiry, setCardExpiry] = useState('12/27');
+        const [aadhar, setAadhar] = useState('2345 6789 0123');
+        const [pan, setPan] = useState('ABCDE1234F');
+        const [ifsc, setIfsc] = useState('HDFC0001234');
+        const [gstin, setGstin] = useState('27AAPFU0939F1ZV');
+        const [pinCode, setPinCode] = useState('400001');
     • TextArea: value={bio} onChange={({ value }) => setBio(value ?? '')}
-    • Forms: Add INLINE validation — ONLY as derived const variables, NEVER as useState:
-      - email fields: const isEmailValid = email === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
-        then: <TextInput value={email} onChange={({ value }) => setEmail(value ?? '')} validationState={isEmailValid ? "none" : "error"} errorText="Enter a valid email address" />
-      - SUBMIT BUTTON — MUST include ALL required fields in the canSubmit check.
-        For a checkout/order form: const canSubmit = email !== '' && fullName !== '' && phone !== '' && address !== '' && isEmailValid;
+    • Forms: Add INLINE validation — ONLY as derived const variables, NEVER as useState.
+      Detect field type from its LABEL text and apply the matching rule:
+
+      FIELD VALIDATION RULES (match label keywords case-insensitively):
+      - label contains "email":
+          const isEmailValid = email === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
+          <TextInput validationState={isEmailValid ? "none" : "error"} errorText="Enter a valid email address" />
+      - label contains "phone" / "mobile" / "contact number":
+          const isPhoneValid = phone === '' || /^\d{10}$/.test(phone.replace(/[\s\-\+]/g, '').replace(/^91/, ''));
+          <TextInput validationState={isPhoneValid ? "none" : "error"} errorText="Enter a valid 10-digit mobile number" />
+      - label contains "card number" / "credit card" / "debit card":
+          const isCardValid = cardNumber === '' || /^\d{16}$/.test(cardNumber.replace(/[\s\-]/g, ''));
+          <TextInput validationState={isCardValid ? "none" : "error"} errorText="Enter a valid 16-digit card number" />
+      - label contains "expiry" / "expiry date" / "exp date":
+          const isExpiryValid = cardExpiry === '' || /^\d{2}\/\d{2}$/.test(cardExpiry);
+          <TextInput validationState={isExpiryValid ? "none" : "error"} errorText="Enter expiry as MM/YY" />
+      - label contains "cvv" / "cvc":
+          const isCvvValid = cvv === '' || /^\d{3,4}$/.test(cvv);
+          <TextInput validationState={isCvvValid ? "none" : "error"} errorText="Enter a valid CVV" />
+      - label contains "aadhar" / "aadhaar":
+          const isAadharValid = aadhar === '' || /^\d{12}$/.test(aadhar.replace(/[\s\-]/g, ''));
+          <TextInput validationState={isAadharValid ? "none" : "error"} errorText="Enter a valid 12-digit Aadhaar number" />
+      - label contains "pan" (and NOT "panel" / "panchayat"):
+          const isPanValid = pan === '' || /^[A-Z]{5}\d{4}[A-Z]$/i.test(pan);
+          <TextInput validationState={isPanValid ? "none" : "error"} errorText="Enter a valid PAN (e.g. ABCDE1234F)" />
+      - label contains "ifsc":
+          const isIfscValid = ifsc === '' || /^[A-Z]{4}0[A-Z0-9]{6}$/i.test(ifsc);
+          <TextInput validationState={isIfscValid ? "none" : "error"} errorText="Enter a valid IFSC code (e.g. HDFC0001234)" />
+      - label contains "gst" / "gstin":
+          const isGstValid = gstin === '' || /^\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][0-9A-Z]$/i.test(gstin);
+          <TextInput validationState={isGstValid ? "none" : "error"} errorText="Enter a valid GSTIN (e.g. 27AAPFU0939F1ZV)" />
+      - label contains "pin code" / "postal code" / "zip code":
+          const isPinValid = pinCode === '' || /^\d{6}$/.test(pinCode);
+          <TextInput validationState={isPinValid ? "none" : "error"} errorText="Enter a valid 6-digit PIN code" />
+      - label contains "otp":
+          const isOtpValid = otp === '' || /^\d{4,6}$/.test(otp);
+          <TextInput validationState={isOtpValid ? "none" : "error"} errorText="Enter a valid OTP" />
+      - label contains "account number" / "bank account":
+          const isAccountValid = accountNumber === '' || /^\d{9,18}$/.test(accountNumber.replace(/[\s]/g, ''));
+          <TextInput validationState={isAccountValid ? "none" : "error"} errorText="Enter a valid account number (9–18 digits)" />
+
+      - SUBMIT BUTTON — MUST include ALL required fields in the canSubmit check. Include isXxxValid for every field that has a validation rule above.
+        For a checkout/order form: const canSubmit = email !== '' && fullName !== '' && phone !== '' && address !== '' && isEmailValid && isPhoneValid;
+        For a payment form: const canSubmit = cardNumber !== '' && cvv !== '' && cardExpiry !== '' && isCardValid && isCvvValid && isExpiryValid;
+        For a KYC form: const canSubmit = aadhar !== '' && pan !== '' && isAadharValid && isPanValid;
         For a login form: const canSubmit = email !== '' && password !== '' && isEmailValid;
         For a signup form: const canSubmit = email !== '' && password !== '' && confirmPassword === password && isEmailValid;
         then ALWAYS: <Button isDisabled={!canSubmit}>
