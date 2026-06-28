@@ -109,7 +109,14 @@ const ImageContextSchema = z.object({
     header: z
       .object({
         type: z.enum(["topnav", "simple-heading"]).catch("simple-heading"),
+        hasSidebarToggle: z.boolean().catch(false),
+        breadcrumb: z.string().optional(),
+        hasNotificationBell: z.boolean().catch(false),
+        notificationCount: z.number().optional(),
         hasAvatar: z.boolean().catch(false),
+        userName: z.string().optional(),
+        userRole: z.string().optional(),
+        hasUserDropdown: z.boolean().catch(false),
         hasSearch: z.boolean().catch(false),
       })
       .optional(),
@@ -162,6 +169,7 @@ const ImageContextSchema = z.object({
     }),
   ).optional(),
   statusIndicators: z.array(z.string().catch("")).optional(),
+  layoutSkeleton: z.string().optional(),
 });
 
 export async function POST(req: Request) {
