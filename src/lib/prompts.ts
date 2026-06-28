@@ -407,6 +407,120 @@ Dashboard sidebar rules (REQUIRED):
 - TopNav in the RIGHT column for the header bar
 - marginTop="auto" on the footer nav item pushes it to the bottom of the sidebar
 
+LAYOUT SKELETON RULE — when the user content includes a "LAYOUT SKELETON" block:
+The skeleton defines the LOCKED macro structure. Use it as your outer shell.
+Expand each {/* SLOT_NAME: key="value" */} comment with the Blade JSX below.
+NEVER change Box widths, flex values, flexDirection, gap, or padding from the skeleton — they encode the exact Figma proportions.
+
+{/* TOPNAV: hasSidebarToggle=BOOL breadcrumb="TEXT" hasNotificationBell=BOOL notificationCount=N hasAvatar=BOOL userName="NAME" userRole="ROLE" hasUserDropdown=BOOL */}
+→ Expand to:
+  <TopNav>
+    <TopNavBrand>
+      <Box display="flex" alignItems="center" gap="spacing.3">
+        {hasSidebarToggle_VALUE && <Box width="28px" height="28px" borderRadius="medium" display="flex" alignItems="center" justifyContent="center"><MenuIcon /></Box>}
+        <Heading size="medium">INSTITUTION_NAME_FROM_ASSETS</Heading>
+      </Box>
+    </TopNavBrand>
+    <TopNavContent><Text size="small" color="surface.text.gray.muted">breadcrumb_VALUE</Text></TopNavContent>
+    <TopNavActions>
+      <Box display="flex" alignItems="center" gap="spacing.4">
+        {hasNotificationBell_VALUE && (
+          <Box display="flex" alignItems="center" gap="spacing.2">
+            <BellIcon />
+            {notificationCount_VALUE > 0 && <Badge color="negative">{notificationCount_VALUE}</Badge>}
+          </Box>
+        )}
+        {hasAvatar_VALUE && (
+          <Box display="flex" alignItems="center" gap="spacing.3">
+            <Avatar name="userName_VALUE" />
+            <Box display="flex" flexDirection="column">
+              <Text size="small" weight="semibold">userName_VALUE</Text>
+              <Text size="xsmall" color="surface.text.gray.muted">userRole_VALUE</Text>
+            </Box>
+            {hasUserDropdown_VALUE && <ChevronDownIcon />}
+          </Box>
+        )}
+      </Box>
+    </TopNavActions>
+  </TopNav>
+
+{/* SIDENAV: width="W" items=["Item1","Item2"] active="ActiveItem" */}
+→ Expand to:
+  const [activePage, setActivePage] = useState("ActiveItem");
+  <Box width="W" flexShrink="0" backgroundColor="surface.background.gray.subtle"
+       display="flex" flexDirection="column" paddingY="spacing.6" paddingX="spacing.4">
+    {["Item1","Item2",...].map((item) => (
+      <Box key={item} display="flex" alignItems="center" gap="spacing.3" padding="spacing.3"
+           borderRadius="medium"
+           backgroundColor={activePage === item ? "surface.background.primary.subtle" : "transparent"}
+           onClick={() => setActivePage(item)}>
+        <Text size="small" color={activePage === item ? "surface.text.primary.normal" : "surface.text.gray.normal"}>{item}</Text>
+      </Box>
+    ))}
+  </Box>
+
+{/* STEPPER: steps=[{"n":N,"title":"T","subtitle":"S","active":BOOL},...] */}
+→ Expand to:
+  const steps = [/* paste the steps array from the slot comment verbatim */];
+  const [activeStep, setActiveStep] = useState(steps.find((s) => s.active)?.n ?? 1);
+  <Box width="200px" flexShrink="0" display="flex" flexDirection="column">
+    {steps.map((step, idx) => {
+      const isLast = idx === steps.length - 1;
+      return (
+        <Box key={step.n} display="flex" gap="spacing.3" alignItems="flex-start">
+          <Box display="flex" flexDirection="column" alignItems="center">
+            <Box width="22px" height="22px" borderRadius="circular" flexShrink="0"
+                 display="flex" alignItems="center" justifyContent="center"
+                 backgroundColor={activeStep === step.n ? "surface.background.primary.intense" : "surface.background.gray.intense"}>
+              <Text size="xsmall" weight="semibold"
+                    color={activeStep === step.n ? "surface.text.staticWhite.normal" : "surface.text.gray.muted"}>{step.n}</Text>
+            </Box>
+            {!isLast && <Box width="2px" minHeight="32px" backgroundColor="surface.background.gray.intense" />}
+          </Box>
+          <Box paddingBottom={isLast ? "spacing.0" : "spacing.5"} paddingLeft="spacing.1">
+            <Text size="small" weight={activeStep === step.n ? "semibold" : "regular"}
+                  color={activeStep === step.n ? "surface.text.gray.normal" : "surface.text.gray.muted"}>{step.title}</Text>
+            {step.subtitle && <Text size="xsmall" color="surface.text.gray.muted">{step.subtitle}</Text>}
+          </Box>
+        </Box>
+      );
+    })}
+  </Box>
+
+{/* FORM_CONTENT: heading="H" */}
+→ Expand to: <Card><CardBody>[Heading size="large" for H, then all form fields from imageContext.fields using fieldRows layout, then submit Button]</CardBody></Card>
+
+{/* SUMMARY_CARD: title="T" sticky=true */}
+→ Expand to:
+  <Box width="320px" flexShrink="0" alignSelf="flex-start">
+    <Card><CardBody>
+      <Heading size="small">T</Heading>
+      <Divider marginY="spacing.4" />
+      [Box rows: each line item as justifyContent="space-between" with Text label + Amount value]
+      <Divider marginY="spacing.4" />
+      <Box display="flex" justifyContent="space-between">
+        <Text size="medium" weight="semibold">Total</Text>
+        <Amount value={total} currency="INR" />
+      </Box>
+    </CardBody></Card>
+  </Box>
+
+{/* TAB_NAV: tabs=["T1","T2"] active="T1" */}
+→ Expand to:
+  const [activeTab, setActiveTab] = useState("T1");
+  <TabNav>
+    <TabNavItems>
+      {["T1","T2",...].map((tab) => (
+        <TabNavItem key={tab} isActive={activeTab === tab} onClick={() => setActiveTab(tab)} as={RouterLink} href="#">{tab}</TabNavItem>
+      ))}
+    </TabNavItems>
+  </TabNav>
+
+{/* CONTENT_AREA: description="..." */}
+→ Expand to the main content based on imageContext.sections, imageContext.fields, and scenario description.
+
+{/* SINGLE_COLUMN */} or no layoutSkeleton → use current rendering behavior (no locked outer structure).
+
 SCENARIO RENDERING RULES:
 - "prototype" scenario: the FULLY INTERACTIVE working version. Every field must be editable by the user:
     • ALL inputs must be controlled with useState — value={state} onChange={({ value }) => setState(value ?? '')}
