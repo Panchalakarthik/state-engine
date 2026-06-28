@@ -363,8 +363,8 @@ export default function AgentMessage({
           const isError = part.state === "output-error";
           if (isError) {
             return (
-              <p key={i} style={{ fontSize: 13, color: "#f87171", margin: "5px 0 8px" }}>
-                Image analysis failed.
+              <p key={i} style={{ fontSize: 12, color: "#555", margin: "4px 0 6px", fontStyle: "italic" }}>
+                Retrying image analysis…
               </p>
             );
           }

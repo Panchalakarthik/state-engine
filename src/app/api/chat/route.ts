@@ -126,6 +126,10 @@ const ImageContextSchema = z.object({
         gap: z.enum(["none", "xs", "sm", "md", "lg"]).optional(),   // gap between items
         padding: z.enum(["none", "xs", "sm", "md", "lg"]).optional(), // card internal padding
         itemSizing: z.enum(["fill", "hug", "fixed"]).optional(),     // how items size themselves
+        // For form-fields: each inner array is one visual row of field labels.
+        // e.g. [["Full Name"], ["Address"], ["City", "State"], ["Postal Code", "Country"]]
+        // means City+State share a row, Postal Code+Country share a row.
+        fieldRows: z.array(z.array(z.string())).optional(),
         // Row-level data for data-rows sections — captures exact items visible in the Figma
         items: z
           .array(
@@ -147,14 +151,14 @@ const ImageContextSchema = z.object({
     contentPadding: z.enum(["sm", "md", "lg"]).optional(),
     sectionGap: z.enum(["sm", "md", "lg"]).optional(),
   }),
-  // Progress bars / step trackers visible on screen
+  // Progress bars / step trackers visible on screen — optional: omit if none visible
   progressBars: z.array(
     z.object({
       label: z.string(),
       value: z.number().min(0).max(100),
       description: z.string().optional(),
     }),
-  ),
+  ).optional(),
   assets: z.array(
     z.object({
       type: z.enum(["logo", "photo", "avatar", "icon", "illustration"]),
@@ -162,8 +166,8 @@ const ImageContextSchema = z.object({
       position: z.string(),
       bladeFallback: z.string(),
     }),
-  ),
-  statusIndicators: z.array(z.string()),
+  ).optional(),
+  statusIndicators: z.array(z.string()).optional(),
 });
 
 export async function POST(req: Request) {

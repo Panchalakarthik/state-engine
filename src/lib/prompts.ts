@@ -43,7 +43,17 @@ User:     Avatar
 Nav:      TopNav, TopNavBrand, TopNavContent, TopNavActions, TabNav, TabNavItem, TabNavItems
 Icons:    HomeIcon, DashboardIcon, SettingsIcon, UserIcon, UsersIcon, BellIcon, SearchIcon,
           PlusIcon, EditIcon, TrashIcon, DownloadIcon, UploadIcon, CheckIcon, CloseIcon,
-          WalletIcon, BankIcon, InfoIcon, LayoutIcon, MenuIcon, ShieldIcon, LockIcon, RupeeIcon
+          WalletIcon, BankIcon, InfoIcon, LayoutIcon, MenuIcon, ShieldIcon, LockIcon, RupeeIcon,
+          AlertCircleIcon, AlertTriangleIcon, ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, ArrowDownIcon,
+          BarChartIcon, BookmarkIcon, BriefcaseIcon, CalendarIcon, CheckCircleIcon,
+          ChevronDownIcon, ChevronUpIcon, ChevronLeftIcon, ChevronRightIcon,
+          ClipboardIcon, ClockIcon, CopyIcon, CreditCardIcon, ExternalLinkIcon,
+          EyeIcon, EyeOffIcon, FileIcon, FileTextIcon, FilterIcon, FlagIcon, GlobeIcon,
+          HelpCircleIcon, HistoryIcon, ImageIcon, ListIcon, LogInIcon, LogOutIcon,
+          MailIcon, MapPinIcon, MessageCircleIcon, MessageSquareIcon, MinusIcon,
+          MoreHorizontalIcon, MoreVerticalIcon, PhoneIcon, PieChartIcon, PromptIcon,
+          RefreshIcon, SendIcon, ShareIcon, SlashIcon, SparklesIcon, SortIcon, StarIcon,
+          TagIcon, TicketIcon, TrendingDownIcon, TrendingUpIcon, UnlockIcon, XCircleIcon, ZapIcon
 Router:   RouterLink (replaces react-router Link — use as={RouterLink} on SideNavLink)
 Hooks:    useState, useEffect, useRef, useCallback, useMemo
 
@@ -61,7 +71,7 @@ CONVERSION RULES:
    - Tooltip → omit or render as plain Text
    - SearchInput → TextInput
    - Indicator → Badge
-   - Any icon not in the list above → omit it
+   - Any icon not in the list above → omit it or replace with the closest match from the list (e.g. BotIcon → PromptIcon, ChatIcon → MessageCircleIcon)
 7. SIDEBAR RULE (critical): NEVER use the <SideNav> component — it collapses in canvas.
    Instead render a 240px Box sidebar:
    <Box width="240px" flexShrink="0" backgroundColor="surface.background.gray.intense"
@@ -158,7 +168,17 @@ Nav:      SideNav, SideNavBody, SideNavSection, SideNavLink, SideNavFooter, Side
           TabNav, TabNavItem, TabNavItems
 Icons:    HomeIcon, DashboardIcon, SettingsIcon, UserIcon, UsersIcon, BellIcon, SearchIcon,
           PlusIcon, EditIcon, TrashIcon, DownloadIcon, UploadIcon, CheckIcon, CloseIcon,
-          WalletIcon, BankIcon, InfoIcon, LayoutIcon, MenuIcon, ShieldIcon, LockIcon, RupeeIcon
+          WalletIcon, BankIcon, InfoIcon, LayoutIcon, MenuIcon, ShieldIcon, LockIcon, RupeeIcon,
+          AlertCircleIcon, AlertTriangleIcon, ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, ArrowDownIcon,
+          BarChartIcon, BookmarkIcon, BriefcaseIcon, CalendarIcon, CheckCircleIcon,
+          ChevronDownIcon, ChevronUpIcon, ChevronLeftIcon, ChevronRightIcon,
+          ClipboardIcon, ClockIcon, CopyIcon, CreditCardIcon, ExternalLinkIcon,
+          EyeIcon, EyeOffIcon, FileIcon, FileTextIcon, FilterIcon, FlagIcon, GlobeIcon,
+          HelpCircleIcon, HistoryIcon, ImageIcon, ListIcon, LogInIcon, LogOutIcon,
+          MailIcon, MapPinIcon, MessageCircleIcon, MessageSquareIcon, MinusIcon,
+          MoreHorizontalIcon, MoreVerticalIcon, PhoneIcon, PieChartIcon, PromptIcon,
+          RefreshIcon, SendIcon, ShareIcon, SlashIcon, SparklesIcon, SortIcon, StarIcon,
+          TagIcon, TicketIcon, TrendingDownIcon, TrendingUpIcon, UnlockIcon, XCircleIcon, ZapIcon
 Router stub: RouterLink (use as={RouterLink} in SideNavLink / TabNavItem — no react-router imports needed)
 React hooks: useState, useEffect, useRef, useCallback, useMemo
 
@@ -450,6 +470,10 @@ EXTRACTION RULES:
     • padding: none | xs | sm | md | lg — internal padding inside each card/container
     • itemSizing: fill (items stretch to fill width), hug (items shrink to content), fixed (items have a set width)
     • items: for data-rows sections, list EVERY visible row: { title, description, badge, badgeColor: positive|notice|neutral|negative }
+    • fieldRows: for form-fields sections ONLY — each element is one VISUAL ROW of field labels, listed top-to-bottom.
+      Single-field rows: ["Full Name"]. Multi-field rows (side-by-side in Figma): ["City", "State"] or ["Postal Code", "Country"].
+      Example: [["Full Name"], ["Address Line 1"], ["Address Line 2"], ["City", "State"], ["Postal Code", "Country"]]
+      This is CRITICAL — if you see two fields side-by-side in the Figma, they MUST appear in the same inner array.
 - layout.contentPadding: sm | md | lg — padding of the main content area from the viewport edge
 - layout.sectionGap: sm | md | lg — vertical gap between top-level sections
 - progressBars: for any progress bar or step tracker visible, record label, current percentage value (0-100), and the description text (e.g. "1 of 5 steps completed")
@@ -496,6 +520,7 @@ export interface ImageContext {
       gap?: "none" | "xs" | "sm" | "md" | "lg";
       padding?: "none" | "xs" | "sm" | "md" | "lg";
       itemSizing?: "fill" | "hug" | "fixed";
+      fieldRows?: string[][];
       items?: Array<{
         title: string;
         description?: string;
@@ -595,6 +620,16 @@ export function buildImageContextInject(ctx: ImageContext): string {
           return `  - Section ${q}: Box flexDirection="column" gap="${itemGap}" ${sizing}. Each row is a ${s.containerType === "card" ? `Card with CardBody padding="${cardPad}"` : `Box padding="${cardPad}"`} with justifyContent="space-between". NEVER flexWrap.${rowsDesc}`;
         }
         if (s.contentType === "form-fields") {
+          if (s.fieldRows && s.fieldRows.length > 0) {
+            const rowLines = s.fieldRows
+              .map((row) =>
+                row.length === 1
+                  ? `      • "${row[0]}" — full width`
+                  : `      • ${row.map((f) => `"${f}"`).join(" + ")} — ${row.length} columns, each width ${Math.floor(100 / row.length)}%`,
+              )
+              .join("\n");
+            return `  - Section ${q}: Box flexDirection="column" gap="${itemGap}". ${s.containerType === "card" ? `Wrap in Card padding="${cardPad}".` : ""}FIELD ROW LAYOUT (must match exactly):\n${rowLines}`;
+          }
           return `  - Section ${q}: Box flexDirection="column" gap="${itemGap}". One field per row. ${s.containerType === "card" ? `Wrap in Card padding="${cardPad}".` : ""}`;
         }
         if (s.contentType === "metric-cards") {
