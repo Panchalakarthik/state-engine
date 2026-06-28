@@ -169,7 +169,8 @@ const ImageContextSchema = z.object({
     }),
   ).optional(),
   statusIndicators: z.array(z.string().catch("")).optional(),
-  layoutSkeleton: z.string().optional(),
+  // layoutSkeleton is NOT in ImageContextSchema — JSX strings in JSON tool-call args corrupt encoding.
+  // Skeleton is generated server-side after analyze_image completes (see capturedLayoutSkeleton).
 });
 
 export async function POST(req: Request) {
@@ -263,9 +264,7 @@ export async function POST(req: Request) {
               layoutDescription: LayoutSchema,
               archetypes: z.array(z.string()).optional(),
               instruction: z.string().optional(),
-              // layoutSkeleton omitted — captured server-side from analyze_image to avoid
-              // JSX string re-serialization through model JSON (breaks on unescaped quotes)
-              imageContext: ImageContextSchema.omit({ layoutSkeleton: true }).optional(),
+              imageContext: ImageContextSchema.optional(),
             }),
             execute: async (args: {
               scenarios: { name: string; description: string }[];
