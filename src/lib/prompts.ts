@@ -541,7 +541,17 @@ EXTRACTION RULES:
     • itemSpacing: compact (tight rows), normal (standard), relaxed (airy)
     • activeStyle: filled (colored background block), outlined (border), underline (bottom border)
     • activeNavItem: the label of the currently selected/highlighted item
-- layout.header: if a top nav bar is present, record its type, whether an avatar and search are shown
+- layout.header: if a top nav bar is present, record ALL of these:
+    • type: "topnav" if it spans full width, "simple-heading" if just a title
+    • hasSidebarToggle: true if there is a ☰ or □ icon to collapse/expand the sidebar
+    • breadcrumb: exact label shown in the center of the nav bar (e.g. "Onboarding Application")
+    • hasNotificationBell: true if a bell icon is present
+    • notificationCount: the badge number on the bell (e.g. 10), if shown
+    • hasAvatar: true if a user avatar/initials circle is shown
+    • userName: exact name shown beside the avatar (e.g. "Neha Naikamal")
+    • userRole: the role/subtitle beneath the name (e.g. "New Student")
+    • hasUserDropdown: true if there is a ▾ dropdown chevron beside the user name
+    • hasSearch: true if a search input is shown
 - layout.sections: for EACH visible content section, record:
     • heading: exact section title
     • containerType: card (has border/shadow) or plain (no container border)
@@ -590,7 +600,14 @@ export interface ImageContext {
     };
     header?: {
       type: "topnav" | "simple-heading";
+      hasSidebarToggle: boolean;
+      breadcrumb?: string;
+      hasNotificationBell: boolean;
+      notificationCount?: number;
       hasAvatar: boolean;
+      userName?: string;
+      userRole?: string;
+      hasUserDropdown: boolean;
       hasSearch: boolean;
     };
     sections: Array<{
@@ -625,6 +642,7 @@ export interface ImageContext {
     bladeFallback: string;
   }>;
   statusIndicators: string[];
+  layoutSkeleton?: string;
 }
 
 export function buildImageContextInject(ctx: ImageContext): string {
