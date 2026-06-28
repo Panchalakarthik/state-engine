@@ -332,16 +332,17 @@ export default function AgentMessage({
 
   const parts = (message.parts ?? []) as AnyPart[];
   let reasoningIdx = 0;
-  let generateStatesDone = false;
+  let firstToolSeen = false;
 
   return (
     <div className="mb-4">
       {parts.map((part, i) => {
         if (part.type === "step-start" || part.type === "data-state") return null;
 
-        // Track when generation completes so we can suppress the model's post-tool text dump
-        if (part.type === "tool-generate_states" && part.state === "output-available") {
-          generateStatesDone = true;
+        // Once ANY tool fires, suppress all subsequent model text — prevents
+        // the model from dumping JSX code between or after tool calls
+        if (part.type.startsWith("tool-")) {
+          firstToolSeen = true;
         }
 
         if (part.type === "reasoning") {
@@ -392,10 +393,9 @@ export default function AgentMessage({
         }
 
         if (part.type === "text" && part.text) {
-          // Suppress any text the model outputs after generate_states finishes —
-          // it always dumps a verbose "verification summary" with JSX code we don't want
-          if (generateStatesDone) return null;
-          // Strip markdown code blocks — model sometimes leaks JSX into text parts
+          // Suppress all text once any tool has fired — the model should only
+          // output a brief status sentence before its first tool call
+          if (firstToolSeen) return null;
           const cleaned = part.text.replace(/```[\s\S]*?```/g, "").replace(/`[^`]+`/g, "").trim();
           if (!cleaned) return null;
           return (

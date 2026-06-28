@@ -72,19 +72,19 @@ const ImageContextSchema = z.object({
   fields: z.array(
     z.object({
       label: z.string(),
-      type: z.enum(["text", "email", "password", "phone", "date", "number", "textarea"]),
+      type: z.enum(["text", "email", "password", "phone", "date", "number", "textarea"]).catch("text"),
       format: z.string().optional(),
-      required: z.boolean(),
+      required: z.boolean().catch(false),
     }),
   ),
   buttons: z.array(
     z.object({
       label: z.string(),
-      variant: z.enum(["primary", "secondary", "tertiary"]),
+      variant: z.enum(["primary", "secondary", "tertiary"]).catch("primary"),
     }),
   ),
-  badges: z.array(z.object({ label: z.string(), color: z.string() })),
-  alerts: z.array(z.object({ type: z.string(), message: z.string().optional() })),
+  badges: z.array(z.object({ label: z.string(), color: z.string() })).optional().default([]),
+  alerts: z.array(z.object({ type: z.string(), message: z.string().optional() })).optional().default([]),
   colorMood: z.string(),
   layout: z.object({
     type: z.enum([
@@ -93,35 +93,35 @@ const ImageContextSchema = z.object({
       "split-screen",
       "card-grid",
       "header-tabs",
-    ]),
+    ]).catch("single-column"),
     sidebar: z
       .object({
-        position: z.enum(["left", "right"]),
-        width: z.string().optional(),       // e.g. "240px", "280px"
+        position: z.enum(["left", "right"]).catch("left"),
+        width: z.string().optional(),
         navItems: z.array(z.string()),
-        hasIcons: z.boolean(),              // true if icons appear beside nav labels
-        itemSpacing: z.enum(["compact", "normal", "relaxed"]), // gap between nav items
-        activeStyle: z.enum(["filled", "outlined", "underline"]), // how active item is highlighted
+        hasIcons: z.boolean().catch(false),
+        itemSpacing: z.enum(["compact", "normal", "relaxed"]).catch("normal"),
+        activeStyle: z.enum(["filled", "outlined", "underline"]).catch("filled"),
       })
       .optional(),
     header: z
       .object({
-        type: z.enum(["topnav", "simple-heading"]),
-        hasAvatar: z.boolean(),
-        hasSearch: z.boolean(),
+        type: z.enum(["topnav", "simple-heading"]).catch("simple-heading"),
+        hasAvatar: z.boolean().catch(false),
+        hasSearch: z.boolean().catch(false),
       })
       .optional(),
     sections: z.array(
       z.object({
         heading: z.string().optional(),
-        containerType: z.enum(["card", "plain"]),
-        columns: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+        containerType: z.enum(["card", "plain"]).catch("plain"),
+        columns: z.union([z.literal(1), z.literal(2), z.literal(3)]).catch(1 as 1),
         contentType: z.enum([
           "form-fields",
           "metric-cards",
           "data-rows",
           "list-items",
-        ]),
+        ]).catch("form-fields"),
         // Auto-layout spacing from Figma
         gap: z.enum(["none", "xs", "sm", "md", "lg"]).optional(),   // gap between items
         padding: z.enum(["none", "xs", "sm", "md", "lg"]).optional(), // card internal padding

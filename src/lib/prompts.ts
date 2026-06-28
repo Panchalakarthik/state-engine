@@ -191,6 +191,13 @@ Component usage hints:
 - Avatar: <Avatar name="Priya Sharma" /> — initials avatar
 - EmptyState: <EmptyState title="No payments yet" description="Your transactions will appear here"><Button>Get started</Button></EmptyState>
 - Switch: <Switch /> — toggle
+- FORM 2-COLUMN RULE: Certain field pairs ALWAYS appear side-by-side — wrap them in <Box display="flex" flexDirection="row" gap="spacing.4">:
+  • City + State (or Province/Region)
+  • Postal Code + Country (or ZIP + Country)
+  • First Name + Last Name
+  Example: <Box display="flex" flexDirection="row" gap="spacing.4"><TextInput label="City" /><TextInput label="State" /></Box>
+  Any imageContext fieldRows instruction overrides this default.
+
 - List/ListItem: USE ONLY for simple single-line text bullet lists. For any row with 2+ data points
   (name + amount, item + status, label + value), use Box rows instead — NOT List.
   Box row pattern for multi-column data:
