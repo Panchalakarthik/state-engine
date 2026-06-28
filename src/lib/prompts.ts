@@ -622,13 +622,16 @@ export function buildImageContextInject(ctx: ImageContext): string {
         if (s.contentType === "form-fields") {
           if (s.fieldRows && s.fieldRows.length > 0) {
             const rowLines = s.fieldRows
-              .map((row) =>
-                row.length === 1
-                  ? `      • "${row[0]}" — full width`
-                  : `      • ${row.map((f) => `"${f}"`).join(" + ")} — ${row.length} columns, each width ${Math.floor(100 / row.length)}%`,
-              )
+              .map((row) => {
+                if (row.length === 1) {
+                  return `      • "${row[0]}" — full width (single TextInput, no flex row)`;
+                }
+                const pct = Math.floor(100 / row.length);
+                const inputs = row.map((f) => `<TextInput label="${f}" />`).join(" ");
+                return `      • ${row.map((f) => `"${f}"`).join(" + ")} — SIDE BY SIDE: <Box display="flex" flexDirection="row" gap="${itemGap}">${inputs}</Box> (each ~${pct}% width)`;
+              })
               .join("\n");
-            return `  - Section ${q}: Box flexDirection="column" gap="${itemGap}". ${s.containerType === "card" ? `Wrap in Card padding="${cardPad}".` : ""}FIELD ROW LAYOUT (must match exactly):\n${rowLines}`;
+            return `  - Section ${q}: outer Box flexDirection="column" gap="${itemGap}". ${s.containerType === "card" ? `Wrap in Card padding="${cardPad}".` : ""}⚠️ IGNORE "columns" from JSON — use this EXACT per-row layout instead:\n${rowLines}`;
           }
           return `  - Section ${q}: Box flexDirection="column" gap="${itemGap}". One field per row. ${s.containerType === "card" ? `Wrap in Card padding="${cardPad}".` : ""}`;
         }

@@ -32,11 +32,11 @@ For a MODIFICATION request (user says "change", "update", "add", "make it", etc.
 1. Call generate_states directly with the existing scenarios, layoutDescription, and an instruction parameter
 2. Do NOT classify again
 
-CRITICAL OUTPUT RULES — violation breaks the UI:
-- NEVER output JSX code, markdown code blocks, or component source in any text response
-- After generate_states returns, output NOTHING — no summary, no verification, no code, no explanation
-- Before tools, one sentence maximum (e.g. "Generating your screen.")
-- Tools handle everything; your text is only shown as a brief status`;
+ABSOLUTE OUTPUT RULES — any violation corrupts the UI and is never acceptable:
+- NEVER output JSX, code blocks, imports, or component source — not even a snippet
+- After generate_states returns: output ZERO text. Not a summary. Not state names. Not "Here are the states". Nothing.
+- Before any tool call: ONE sentence maximum (e.g. "Generating your screen.")
+- The generate_states tool result is internal only — never reference or repeat its contents to the user`;
 
 const AGENT_SYSTEM_IMAGE = `You are a UI state engine for Razorpay's Blade design system.
 
@@ -45,11 +45,11 @@ The user has shared a Figma frame image. Follow these steps IN ORDER:
 2. Call classify_screen with the extracted screenName; pass the extracted field labels and button labels as the components list
 3. Call generate_states with the classify result AND the imageContext from analyze_image
 
-CRITICAL OUTPUT RULES — violation breaks the UI:
-- NEVER output JSX code, markdown code blocks, or component source in any text response
-- After generate_states returns, output NOTHING — no summary, no verification, no code, no explanation
-- Before tools, one sentence maximum (e.g. "I'll analyze the image and generate all states.")
-- Tools handle everything; your text is only shown as a brief status`;
+ABSOLUTE OUTPUT RULES — any violation corrupts the UI and is never acceptable:
+- NEVER output JSX, code blocks, imports, or component source — not even a snippet
+- After generate_states returns: output ZERO text. Not a summary. Not state names. Not "Here are the states". Nothing.
+- Before any tool call: ONE sentence maximum (e.g. "I'll analyze the image and generate all states.")
+- The generate_states tool result is internal only — never reference or repeat its contents to the user`;
 
 const ScenarioSchema = z.object({ name: z.string(), description: z.string() });
 const LayoutSchema = z.object({
@@ -422,7 +422,7 @@ export async function POST(req: Request) {
                 }),
               );
 
-              return { stateNames: scenarios.map((s) => s.name), verification };
+              return { generated: scenarios.length };
             },
           },
         },
