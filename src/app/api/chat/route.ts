@@ -215,6 +215,10 @@ export async function POST(req: Request) {
   const model = hasImage ? sonnetModel : haikuModel;
   const systemPrompt = hasImage ? AGENT_SYSTEM_IMAGE : AGENT_SYSTEM_TEXT;
 
+  // Capture imageContext server-side so generate_states doesn't need the model to re-serialize
+  // layoutSkeleton (multi-line JSX with lots of " chars that break JSON encoding)
+  let capturedImageContext: z.infer<typeof ImageContextSchema> | undefined;
+
   const stream = createUIMessageStream<AppUIMessage>({
     execute: async ({ writer }) => {
       const modelMessages = await convertToModelMessages(normalizedMessages);
@@ -229,7 +233,8 @@ export async function POST(req: Request) {
                   description: ANALYZE_IMAGE_PROMPT,
                   inputSchema: ImageContextSchema,
                   execute: async (imageContext: z.infer<typeof ImageContextSchema>) => {
-                    // Model fills schema by examining the image — just return the extracted data
+                    // Capture server-side — layoutSkeleton must not pass through model JSON
+                    capturedImageContext = imageContext;
                     return imageContext;
                   },
                 },
@@ -258,7 +263,9 @@ export async function POST(req: Request) {
               layoutDescription: LayoutSchema,
               archetypes: z.array(z.string()).optional(),
               instruction: z.string().optional(),
-              imageContext: ImageContextSchema.optional(),
+              // layoutSkeleton omitted — captured server-side from analyze_image to avoid
+              // JSX string re-serialization through model JSON (breaks on unescaped quotes)
+              imageContext: ImageContextSchema.omit({ layoutSkeleton: true }).optional(),
             }),
             execute: async (args: {
               scenarios: { name: string; description: string }[];
@@ -275,8 +282,10 @@ export async function POST(req: Request) {
               instruction?: string;
               imageContext?: ImageContext;
             }) => {
-              const { scenarios, layoutDescription, archetypes, instruction, imageContext } =
-                args;
+              const { scenarios, layoutDescription, archetypes, instruction } = args;
+              // Prefer server-captured imageContext (has layoutSkeleton; model re-pass drops it)
+              const imageContext: ImageContext | undefined =
+                (capturedImageContext ?? args.imageContext) as ImageContext | undefined;
               const sessionId = activeSessionId ?? crypto.randomUUID();
               const protoScenario =
                 scenarios.find((s) => s.name === "prototype") ?? scenarios[0];
