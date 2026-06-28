@@ -245,8 +245,12 @@ export async function generatePrototype(
 
   const imageBlock = imageContext ? buildImageContextInject(imageContext) : "";
 
-  // imageBlock goes FIRST so the model sees exact labels before generating any structure
-  const userContent = `${imageBlock ? imageBlock + "\n" : ""}Layout description:
+  // Skeleton goes first — locks macro layout before Haiku sees any content details
+  const skeletonBlock = imageContext?.layoutSkeleton
+    ? `LAYOUT SKELETON — use as locked outer shell, expand each {/* SLOT */} comment into Blade JSX:\n${imageContext.layoutSkeleton}\n`
+    : "";
+
+  const userContent = `${skeletonBlock}${imageBlock ? imageBlock + "\n" : ""}Layout description:
 ${JSON.stringify(layoutDescription, null, 2)}
 
 Scenario: "prototype"
