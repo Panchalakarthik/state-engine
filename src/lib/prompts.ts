@@ -307,6 +307,16 @@ WHAT YOU MAY CHANGE:
 - For "loading": replace every data value, Badge, Amount, and Text with <Skeleton width="Xpx" height="Ypx"/>
 - Remove useState/useEffect and make all values static strings (except for "prototype")
 
+BUTTON STATE RULES — apply based on scenario description:
+- Description mentions "disabled", "button disabled", "can't submit", "incomplete", "partial": → set isDisabled={true} on ALL submit/primary action buttons
+- Description mentions "loading", "submitting", "processing", "placing order": → set isLoading={true} and isDisabled={true} on submit button
+- Description mentions "success", "order placed", "submitted": → keep button enabled (remove isDisabled)
+- Description mentions "empty form", "nothing typed", "all fields empty": → set isDisabled={true} on submit button
+
+INPUT STATE RULES — for validation-error scenarios:
+- If description names a specific invalid field (e.g. "invalid email", "email error"): → set validationState="error" and errorText="Enter a valid email address" on ONLY that input; leave others as validationState="none"
+- If description says "all fields show errors": → set validationState="error" on every required field
+
 WHAT YOU MUST NEVER CHANGE:
 - Component structure, nesting, or order
 - Heading text (e.g. "Profile Settings" must stay "Profile Settings" in ALL scenarios)
@@ -401,13 +411,28 @@ SCENARIO RENDERING RULES:
 - "prototype" scenario: the FULLY INTERACTIVE working version. Every field must be editable by the user:
     • ALL inputs must be controlled with useState — value={state} onChange={({ value }) => setState(value ?? '')}
     • Blade onChange fires ({ value }) — NEVER write (e) => setState(e.value) — e has no .value property
-    • Pre-fill with realistic sample values so the user can see the screen is "loaded", but they can clear and type their own values
+    • PRE-FILL RULE — CRITICAL: Every text/email/phone/name field MUST start with a realistic non-empty value.
+      NEVER use useState('') for any email, name, phone, or address field in the prototype.
+      Use these defaults (adapt to context):
+        const [email, setEmail] = useState('user@example.com');
+        const [phone, setPhone] = useState('+91 98765 43210');
+        const [fullName, setFullName] = useState('Akshay Kumar');
+        const [address, setAddress] = useState('42, MG Road');
+        const [city, setCity] = useState('Mumbai');
+        const [state, setState] = useState('Maharashtra');
+        const [postal, setPostal] = useState('400001');
+        const [country, setCountry] = useState('India');
+      Only "New Password" / "Confirm Password" / "OTP" fields may start empty.
     • TextArea: value={bio} onChange={({ value }) => setBio(value ?? '')}
     • Forms: Add INLINE validation — ONLY as derived const variables, NEVER as useState:
       - email fields: const isEmailValid = email === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
         then: <TextInput value={email} onChange={({ value }) => setEmail(value ?? '')} validationState={isEmailValid ? "none" : "error"} errorText="Enter a valid email address" />
-      - required fields: const canSubmit = email !== '' && password !== '' && isEmailValid;
-        then: <Button isDisabled={!canSubmit}>
+      - SUBMIT BUTTON — MUST include ALL required fields in the canSubmit check.
+        For a checkout/order form: const canSubmit = email !== '' && fullName !== '' && phone !== '' && address !== '' && isEmailValid;
+        For a login form: const canSubmit = email !== '' && password !== '' && isEmailValid;
+        For a signup form: const canSubmit = email !== '' && password !== '' && confirmPassword === password && isEmailValid;
+        then ALWAYS: <Button isDisabled={!canSubmit}>
+        ⚠️ NEVER render the submit button without isDisabled={!canSubmit} on a form screen.
       - On submit button: onClick={() => { setIsLoading(true); setShowError(false); setTimeout(() => { setIsLoading(false); setShowError(true); }, 1500); }}
       - PasswordInput onChange: onChange={({ value }) => setPassword(value ?? '')}
       - NEVER call setState outside of event handlers or useEffect — it causes infinite re-render loops
@@ -428,6 +453,7 @@ SCENARIO RENDERING RULES:
 - "declining" / "negative" / "down" scenarios: show real data with Badge color="negative", red-leaning values, downward trends, possibly an Alert color="notice".
 - "processing" / "submitting" / "loading-form" scenarios: Button isLoading=true, all inputs isDisabled=true. Show realistic filled values.
 - "empty-form" / "incomplete" scenarios: Button isDisabled=true (nothing typed), inputs empty but enabled.
+- "partial-fill" / "partial-input" scenarios: Some fields have realistic values, one required field (e.g. email) is left empty (value=""), submit button MUST be isDisabled={true} — the empty required field blocks submission.
 - "invalid-*" / "validation-error" / "credential-error" scenarios: TextInput validationState="error", Alert color="negative" shown.
 - "warning" / "notice" scenarios: Alert color="notice" with relevant message.
 - For any other scenario name, read the description carefully and render accordingly.
