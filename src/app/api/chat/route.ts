@@ -159,7 +159,7 @@ const ImageContextSchema = z.object({
       value: z.number().min(0).max(100).catch(0),
       description: z.string().optional(),
     }),
-  ).optional(),
+  ).catch([]),
   assets: z.array(
     z.object({
       type: z.enum(["logo", "photo", "avatar", "icon", "illustration"]).catch("icon"),
@@ -167,8 +167,8 @@ const ImageContextSchema = z.object({
       position: z.string().catch(""),
       bladeFallback: z.string().catch(""),
     }),
-  ).optional(),
-  statusIndicators: z.array(z.string().catch("")).optional(),
+  ).catch([]),
+  statusIndicators: z.array(z.string().catch("")).catch([]),
   // layoutSkeleton is NOT in ImageContextSchema — JSX strings in JSON tool-call args corrupt encoding.
   // Skeleton is generated server-side after analyze_image completes (see capturedLayoutSkeleton).
 });
@@ -234,7 +234,7 @@ export async function POST(req: Request) {
                   description: ANALYZE_IMAGE_PROMPT,
                   inputSchema: ImageContextSchema,
                   execute: async (imageContext: z.infer<typeof ImageContextSchema>) => {
-                    // Capture server-side — layoutSkeleton must not pass through model JSON
+                    console.log("[analyze_image] screenName:", imageContext.screenName, "| heading:", imageContext.heading, "| fields:", imageContext.fields.length, "| layout.type:", imageContext.layout.type, "| statusIndicators:", imageContext.statusIndicators.length);
                     capturedImageContext = imageContext;
                     return imageContext;
                   },
