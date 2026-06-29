@@ -282,9 +282,13 @@ export async function POST(req: Request) {
               imageContext?: ImageContext;
             }) => {
               const { scenarios, layoutDescription, archetypes, instruction } = args;
-              // Prefer server-captured imageContext (has layoutSkeleton; model re-pass drops it)
+              // Prefer server-captured imageContext; discard if analyze_image returned all defaults
+              // (screenName="Unknown Screen" means Sonnet's first JSON attempt was malformed — all
+              // fields fell to Zod catch() defaults). Passing an empty context to Haiku produces
+              // worse output than no context at all.
+              const rawImageContext = (capturedImageContext ?? args.imageContext) as ImageContext | undefined;
               const imageContext: ImageContext | undefined =
-                (capturedImageContext ?? args.imageContext) as ImageContext | undefined;
+                rawImageContext?.screenName === "Unknown Screen" ? undefined : rawImageContext;
               const sessionId = activeSessionId ?? crypto.randomUUID();
               const protoScenario =
                 scenarios.find((s) => s.name === "prototype") ?? scenarios[0];
