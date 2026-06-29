@@ -42,7 +42,8 @@ ABSOLUTE OUTPUT RULES — any violation corrupts the UI and is never acceptable:
 const AGENT_SYSTEM_IMAGE = `You are a UI state engine for Razorpay's Blade design system.
 
 The user has shared a Figma frame image. Follow these steps IN ORDER:
-1. Call analyze_image — examine the image in the conversation and fill in ALL schema fields based on what you see
+1. Call analyze_image — examine the image carefully and fill in ALL schema fields based on what you see.
+   IMPORTANT: If analyze_image returns screenName="Unknown Screen", your JSON was malformed. Call analyze_image AGAIN, this time reading the screen title/heading from the image directly and filling every field accurately.
 2. Call classify_screen with the extracted screenName; pass the extracted field labels and button labels as the components list
 3. Call generate_states with the classify result AND the imageContext from analyze_image
 
@@ -234,8 +235,13 @@ export async function POST(req: Request) {
                   description: ANALYZE_IMAGE_PROMPT,
                   inputSchema: ImageContextSchema,
                   execute: async (imageContext: z.infer<typeof ImageContextSchema>) => {
-                    console.log("[analyze_image] screenName:", imageContext.screenName, "| heading:", imageContext.heading, "| fields:", imageContext.fields.length, "| layout.type:", imageContext.layout.type, "| statusIndicators:", imageContext.statusIndicators.length);
-                    capturedImageContext = imageContext;
+                    console.log("[analyze_image] screenName:", imageContext.screenName, "| heading:", imageContext.heading, "| fields:", imageContext.fields.length, "| layout.type:", imageContext.layout.type);
+                    // Only capture when we have a real result — "Unknown Screen" means Sonnet's
+                    // JSON was malformed (all fields hit .catch() defaults). Keep the previous
+                    // capturedImageContext if this call failed so a successful retry wins.
+                    if (imageContext.screenName !== "Unknown Screen") {
+                      capturedImageContext = imageContext;
+                    }
                     return imageContext;
                   },
                 },
