@@ -74,6 +74,9 @@ export default function Workspace() {
   const { messages, sendMessage, status, stop, setMessages } = useChat<AppUIMessage>({
     transport,
     dataPartSchemas: { state: StateDataSchema },
+    onError: (error) => {
+      console.error("[chat] transport error:", error);
+    },
     onData: (dataPart) => {
       if (dataPart.type !== "data-state") return;
       const data = dataPart.data as StateData;
