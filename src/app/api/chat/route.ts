@@ -406,15 +406,14 @@ export async function POST(req: Request) {
 
               // ── Remaining scenarios in parallel ──────────────────────────────
               const rest = scenarios.filter((s) => s.name !== protoScenario.name);
+              const successNames: string[] = [protoScenario.name];
               await Promise.allSettled(
                 rest.map(async (s) => {
                   try {
-                    const result = await adaptScenario(
-                      protoJsx,
-                      s as Scenario,
-                      req.signal,
-                      imageContext,
-                    );
+                    // imageContext intentionally NOT passed — prototype already encodes the
+                    // layout; passing imageBlock again gives Haiku conflicting instructions
+                    // ("adapt only" vs "reproduce exact details") and causes truncated output.
+                    const result = await adaptScenario(protoJsx, s as Scenario, req.signal);
                     writer.write({
                       type: "data-state",
                       data: {
@@ -424,6 +423,7 @@ export async function POST(req: Request) {
                         description: result.description,
                       } as StateData,
                     });
+                    successNames.push(s.name);
                   } catch (err) {
                     if ((err as Error).name !== "AbortError") {
                       console.warn(`[chat] state "${s.name}" failed:`, err);
@@ -432,7 +432,7 @@ export async function POST(req: Request) {
                 }),
               );
 
-              return { generated: scenarios.length };
+              return { stateNames: successNames, verification };
             },
           },
         },
