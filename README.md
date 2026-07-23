@@ -11,7 +11,7 @@ component _state_ changes.
 - **Framework:** Next.js 16 (App Router, Turbopack)
 - **UI:** React 19, `@razorpay/blade` + styled-components, Tailwind CSS v4 (layout shell only)
 - **Language:** TypeScript 5
-- **AI:** `ai` SDK (`@ai-sdk/anthropic`, `@ai-sdk/react`) driving Claude Haiku + Sonnet, streamed via `useChat`
+- **AI:** [Vercel AI SDK](https://ai-sdk.dev) (`ai`, `@ai-sdk/anthropic`, `@ai-sdk/react`) driving Claude Haiku + Sonnet, streamed via `useChat`
 - **In-browser render:** `@babel/standalone` (classic JSX runtime) → `new Function` eval with Blade injected
 - **Auth:** Clerk
 - **Persistence:** SingleStore (MySQL-compatible) for sessions + usage; chat history streamed over SSE
