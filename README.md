@@ -23,20 +23,13 @@ The whole app is one chat surface (`useChat` → `POST /api/chat`). Every messag
 either **starts a new screen** or **modifies the current one**, and the agent
 picks its toolset based on whether the message includes an image:
 
-```
-Chat message
-    │
-    ├─ text only ─────────────► Haiku · AGENT_SYSTEM_TEXT
-    │                                  classify_screen → generate_states
-    │
-    └─ image (+ optional text) ─► Sonnet · AGENT_SYSTEM_IMAGE
-                                       analyze_image → classify_screen → generate_states
-                                                                │
-                                                                ▼
-                              generatePrototype (1st scenario) → Promise.allSettled(adaptScenario × rest)
-                                                                │
-                                                                ▼
-                        Canvas: compileJsx (Babel, classic runtime) → evalComponent (Blade in scope)
+```mermaid
+flowchart TD
+    A["Chat message"] -->|"text only"| B["Haiku<br/>AGENT_SYSTEM_TEXT<br/>classify_screen → generate_states"]
+    A -->|"image (+ optional text)"| C["Sonnet<br/>AGENT_SYSTEM_IMAGE<br/>analyze_image → classify_screen → generate_states"]
+    B --> D["generatePrototype (1st scenario)<br/>+ Promise.allSettled(adaptScenario × rest)"]
+    C --> D
+    D --> E["Canvas: compileJsx (Babel, classic runtime)<br/>→ evalComponent (Blade in scope)"]
 ```
 
 - **`generate_states`** always produces the first scenario (`prototype`) directly,
